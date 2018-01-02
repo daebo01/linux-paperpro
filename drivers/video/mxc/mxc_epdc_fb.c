@@ -64,7 +64,7 @@
 
 
 
-//#define GDEBUG 1
+#define GDEBUG 0
 #define giDbgLvl 	1000
 #include <linux/gallen_dbg.h>
 
@@ -3530,8 +3530,8 @@ static void epdc_submit_work_func(struct work_struct *work)
 	}
 
 	/* Get rotation-adjusted coordinates */
-	adjust_coordinates(ALIGN(fb_data->epdc_fb_var.xres, 8),
-		ALIGN(fb_data->epdc_fb_var.yres, 8), fb_data->epdc_fb_var.rotate,
+	adjust_coordinates(fb_data->epdc_fb_var.xres,
+		fb_data->epdc_fb_var.yres, fb_data->epdc_fb_var.rotate,
 		&upd_data_list->update_desc->upd_data.update_region,
 		&adj_update_region);
 
@@ -3636,7 +3636,6 @@ static void epdc_submit_work_func(struct work_struct *work)
 		mutex_unlock(&fb_data->queue_mutex);
 		mutex_lock(&fb_data->pxp_mutex);
 
-#if 0
 		if (do_aa_processing_v2_2_0((uint8_t *)(upd_data_list->virt_addr
 				+ upd_data_list->update_desc->epdc_offs),
 				&adj_update_region,
@@ -3645,15 +3644,6 @@ static void epdc_submit_work_func(struct work_struct *work)
 				fb_data->native_width,
 				fb_data->native_height))
 			dev_err(fb_data->dev," AAD algorithm is not available in this EPDC driver!\n");
-#else
-		if (do_aa_processing_v2_2_1(
-				(uint16_t *)fb_data->working_buffer_A_virt,
-				(uint16_t *)fb_data->working_buffer_B_virt,
-				&adj_update_region,
-				fb_data->native_width,
-				fb_data->native_height))
-				dev_err(fb_data->dev," AAD algorithm is not available in this EPDC driver!\n");
-#endif
 
 		mutex_unlock(&fb_data->pxp_mutex);
 		mutex_lock(&fb_data->queue_mutex);
@@ -3661,7 +3651,7 @@ static void epdc_submit_work_func(struct work_struct *work)
 		       /* collect the system time data */
 		       aa_time_stamp[1] = get_uSecs();
 
-			DBG_MSG (" --- AA(v2.2.1) Algo Exec Time = %d\n", getTimeDiff(aa_time_stamp[0], aa_time_stamp[1]));
+			DBG_MSG (" --- AAl(v2.2.0) Algo Exec Time = %d\n", getTimeDiff(aa_time_stamp[0], aa_time_stamp[1]));
 		flush_cache_all();
 		outer_flush_all();
 	} 
@@ -3679,7 +3669,6 @@ static void epdc_submit_work_func(struct work_struct *work)
 		mutex_unlock(&fb_data->queue_mutex);
 		mutex_lock(&fb_data->pxp_mutex);
 
-#if 0
 		if (do_aad_processing_v2_1_0((uint8_t *)(upd_data_list->virt_addr
 				+ upd_data_list->update_desc->epdc_offs),
 				&adj_update_region,
@@ -3688,15 +3677,6 @@ static void epdc_submit_work_func(struct work_struct *work)
 				fb_data->native_width,
 				fb_data->native_height))
 			dev_err(fb_data->dev," AA algorithm is not available in this EPDC driver!\n");
-#else 
-		if (do_aad_processing_v2_1_1(
-				(uint16_t *)fb_data->working_buffer_A_virt,
-				(uint16_t *)fb_data->working_buffer_B_virt,
-				&adj_update_region,
-				fb_data->native_width,
-				fb_data->native_height))
-			dev_err(fb_data->dev," AAD algorithm is not available in this EPDC driver!\n");
-#endif 
 
 		mutex_unlock(&fb_data->pxp_mutex);
 		mutex_lock(&fb_data->queue_mutex);
@@ -3770,8 +3750,8 @@ static void epdc_submit_work_func(struct work_struct *work)
 		upd_region->height = actual_update_region.height;
 	}
 
-	adjust_coordinates(ALIGN(fb_data->epdc_fb_var.xres, 8),
-		ALIGN(fb_data->epdc_fb_var.yres, 8), fb_data->epdc_fb_var.rotate,
+	adjust_coordinates(fb_data->epdc_fb_var.xres,
+		fb_data->epdc_fb_var.yres, fb_data->epdc_fb_var.rotate,
 		upd_region,
 		&adj_update_region);
 
@@ -4431,8 +4411,8 @@ static int mxc_epdc_fb_send_single_update(struct mxcfb_update_data *upd_data,
 	upd_data->waveform_mode = upd_desc->upd_data.waveform_mode;
 
 	/* Get rotation-adjusted coordinates */
-	adjust_coordinates(ALIGN(fb_data->epdc_fb_var.xres,8),
-		ALIGN(fb_data->epdc_fb_var.yres,8), fb_data->epdc_fb_var.rotate,
+	adjust_coordinates(fb_data->epdc_fb_var.xres,
+		fb_data->epdc_fb_var.yres, fb_data->epdc_fb_var.rotate,
 		&upd_desc->upd_data.update_region, NULL);
 
 	/* Grab lock for queue manipulation and update submission */
@@ -5280,8 +5260,8 @@ static void epdc_aa_work_func(struct work_struct *work)
 	struct mxcfb_rect adj_update_region;
 
 	/* Get rotation-adjusted coordinates */
-	adjust_coordinates(ALIGN(fb_data->epdc_fb_var.xres,8),
-		ALIGN(fb_data->epdc_fb_var.yres,8), fb_data->epdc_fb_var.rotate,
+	adjust_coordinates(fb_data->epdc_fb_var.xres,
+		fb_data->epdc_fb_var.yres, fb_data->epdc_fb_var.rotate,
 		&upd_data_list->update_desc->upd_data.update_region,
 		&adj_update_region);
 
@@ -5320,7 +5300,7 @@ static void epdc_aa_work_func(struct work_struct *work)
                /* collect the system time data */
                aa_time_stamp[1] = get_uSecs();
 
-               dev_info (fb_data->dev, "AA-D(v2.2.1) Algo Exec Time = %d\n", getTimeDiff(aa_time_stamp[0], aa_time_stamp[1]));
+               dev_info (fb_data->dev, "AA(v2.2.1) Algo Exec Time = %d\n", getTimeDiff(aa_time_stamp[0], aa_time_stamp[1]));
 	} 
 	else if (upd_data_list->update_desc->upd_data.flags
 						& EPDC_FLAG_USE_AAD) {
@@ -5873,7 +5853,7 @@ static void epdc_intr_work_func(struct work_struct *work)
 					rotate = FB_ROTATE_UR;
 					break;
 				}
-				adjust_coordinates(ALIGN(xres,8), ALIGN(yres,8), rotate,
+				adjust_coordinates(xres, yres, rotate,
 						&coll_region, cur_upd_rect);
 
 				dev_dbg(fb_data->dev, "Adj coll region: l = %d, "
