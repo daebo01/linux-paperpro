@@ -73,4 +73,5 @@ arch/arm/boot/zImage
 arch/arm/boot/compressed/piggy.gzip
 arch/arm/boot/compressed/vmlinux
 
-
+# Add regal
+!drivers/video/mxc/lib.a
