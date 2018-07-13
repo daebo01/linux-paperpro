@@ -91,6 +91,11 @@
 
 #include "eink_processing2.h"
 
+//gamma correction
+ struct gamma_correction_lut{
+    unsigned char lut[256];
+};
+
 /*******************************************
  * AA/AA-D testing
  *******************************************/
@@ -1832,6 +1837,22 @@ static int mxc_epdc_fb_setcolreg(u_int regno, u_int red, u_int green,
 	}
 
 	return ret;
+}
+
+int set_gamma_correction_table(struct gamma_correction_lut* gamma_lut, struct fb_info *info) {
+	struct mxc_epdc_fb_data *fb_data = (struct mxc_epdc_fb_data *)info;
+	int i;
+	mxc_epdc_fb_flush_updates(fb_data);
+
+	mutex_lock(&fb_data->pxp_mutex);
+	for (i = 0; i < 256; i++)
+		fb_data->pxp_conf.proc_data.lut_map[i] = gamma_lut->lut[i];
+
+	fb_data->pxp_conf.proc_data.lut_map_updated = true;
+
+	mutex_unlock(&fb_data->pxp_mutex);
+
+	return 0;
 }
 
 static int mxc_epdc_fb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
@@ -4831,7 +4852,17 @@ static int mxc_epdc_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 			break;
 		}
-
+		case MXCFB_SET_GAMMA:
+		//printk("\n==> MXCFB_SET_GAMMA\n");                                                                                    
+		{
+			struct gamma_correction_lut gamma_lut;
+			if (!copy_from_user(&gamma_lut, argp, sizeof(gamma_lut))) {
+				ret = set_gamma_correction_table(&gamma_lut, info);
+			} else {
+				ret = -EFAULT;
+			}
+			break;
+		}
 #ifdef MX50_IOCTL_IF//[
 	case MXCFB_SEND_UPDATE_ORG:GALLEN_DBGLOCAL_RUNLOG(4);
 		//printk("\n==> MXCFB_SEND_UPDATE\n");															 
