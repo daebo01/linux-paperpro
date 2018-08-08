@@ -476,6 +476,11 @@ int ricoh619_charger_detect(void)
 	int ret;
 	int iInINT = in_interrupt();
 	
+	if(13==gptHWCFG->m_val.bBattery) {
+		// always return SDP for 8V battery.
+		return SDP_PC_CHARGER;
+	}
+
 	//printk("%s(),suspend=%d,atomic=%d,interrupt=%d\n",__FUNCTION__,ricoh61x->iIsSuspending,in_atomic()?1:0,in_interrupt()?1:0);
 
 	if(iInINT) {
