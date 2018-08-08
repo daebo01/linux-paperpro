@@ -96,7 +96,7 @@
 #define CM_DEVICE_INFO 			131
 
 //Joseph 091211 for 3G
-#define CM_3G_POWER 			150
+#define CM_LTE_POWER 			150
 #define CM_3G_RF_OFF 			151
 #define CM_3G_RESET 			152
 #define CM_3G_GET_WAKE_STATUS	153
@@ -759,6 +759,7 @@ extern unsigned long g_kl25_action;
 extern void ntx_wifi_power_ctrl (int isWifiEnable);
 extern void ntx_bt_power_ctrl (int isBTEnable);
 extern void ntx_ite8951_power(int iIsON);
+extern void ntx_lte_power(int iIsON);
 
 extern u16 msp430_deviceid(void);
 extern void msp430_auto_power(int minutes);
@@ -1734,7 +1735,8 @@ static int  ioctlDriver(struct file *filp, unsigned int command, unsigned long a
 			g_kl25_action = 0;
 			break;
 
-		case CM_3G_POWER:
+		case CM_LTE_POWER:
+			ntx_lte_power (p);
 			break;	
 					
 		case CM_3G_RF_OFF:

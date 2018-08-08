@@ -3964,6 +3964,15 @@ void ntx_ite8951_power(int iIsON)
 	}
 }
 
+void ntx_lte_power(int iIsON)
+{
+	if(72==gptHWCFG->m_val.bPCB) {
+//	if(4==gptHWCFG->m_val.bMobile) {
+		//SIM7100
+		gpio_direction_output (gMX6SL_LTE_PWR_EN, iIsON?1:0);
+	}
+}
+
 static iomux_v3_cfg_t mx6sl_ntx_suspend_pads[] = {
 	MX6SL_PAD_I2C2_SCL__GPIO_3_14,
 	MX6SL_PAD_I2C2_SDA__GPIO_3_15,
@@ -4388,7 +4397,7 @@ static void ntx_gpio_init(void)
 			//SIM7100
 			mxc_iomux_v3_setup_pad(MX6SL_PAD_FEC_RX_ER__GPIO_4_19);
 			gpio_request (gMX6SL_LTE_PWR_EN, "LTE_PWR_EN");
-			gpio_direction_output (gMX6SL_LTE_PWR_EN, 1);
+			gpio_direction_output (gMX6SL_LTE_PWR_EN, 0);
 
 			mxc_iomux_v3_setup_pad(MX6SL_PAD_AUD_TXFS__GPIO_1_4);
 			gpio_request (gMX6SL_LTE_INT, "LTE_INT");
