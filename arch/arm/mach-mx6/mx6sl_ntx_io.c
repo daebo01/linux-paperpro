@@ -2994,7 +2994,7 @@ void ntx_gpio_suspend (void)
 
 	gpiofn_suspend();
 
-	if(61 == gptHWCFG->m_val.bPCB) {  // E60QKX
+	if(61 == gptHWCFG->m_val.bPCB || 64 == gptHWCFG->m_val.bPCB) {  // E60QKX, C31Q0X
 		if(!gSleep_Mode_Suspend) {
 			request_irq(gpio_to_irq(gMX6SL_WIFI_INT),wifi_int, IRQF_TRIGGER_FALLING, "wifi_int", 0);
 			enable_irq_wake(gpio_to_irq(gMX6SL_WIFI_INT));
@@ -3487,7 +3487,7 @@ void ntx_gpio_resume (void)
 
 	}
 
-	if(61 == gptHWCFG->m_val.bPCB) {  // E60QKX
+	if(61 == gptHWCFG->m_val.bPCB || 64 == gptHWCFG->m_val.bPCB) {  // E60QKX, C31Q0X
 		if(!gSleep_Mode_Suspend) {
 			free_irq(gpio_to_irq(gMX6SL_WIFI_INT),0);
 		}
