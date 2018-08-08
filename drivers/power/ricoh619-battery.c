@@ -6668,9 +6668,11 @@ static int ricoh61x_battery_resume(struct device *dev)
 
 				// If difference is small, use current method. If not, use voltage method.
 				if (is_low_current && ((soc_current - soc_voltage) > 1000) && (30 < suspend_period_time) && (5 < Cnt_ApplyVolMethod++)) {
-						// Use Voltage method if difference is large
-						displayed_soc_temp = soc_voltage;
-						update_rsoc_on_voltageMethod(info, soc_voltage);
+					Cnt_ApplyVolMethod = 0;
+					// Use Voltage method if difference is large
+					displayed_soc_temp = soc_voltage;
+					update_rsoc_on_voltageMethod(info, soc_voltage);
+					SUSPEND_PRINT(KERN_DEBUG "PMU: %s(%d) : soc_voltage(%d) DSOC(%d)\n", __func__,__LINE__, soc_voltage, displayed_soc_temp);
 				}
 				else {
 					if ((soc_current - soc_voltage) < 1000)
@@ -6687,6 +6689,7 @@ static int ricoh61x_battery_resume(struct device *dev)
 						SUSPEND_PRINT(KERN_DEBUG "PMU: %s : temp_cc_delta_cap_mas(%d), extra value(%d) ==========\n",
 							__func__,info->soca->temp_cc_delta_cap_mas, (cc_cap_mas -(((fa_cap * 9) / 25) * info->soca->cc_delta)));
 					}
+				}
 			} else {
 				// Charge Processing
 				val = info->soca->init_pswr + (info->soca->cc_delta/100);
@@ -6741,12 +6744,14 @@ static int ricoh61x_battery_resume(struct device *dev)
 
 				// If difference is small, use current method. If not, use voltage method.
 				if (is_low_current && ((soc_current - soc_voltage) > 1000) && (30 < suspend_period_time) && (5 < Cnt_ApplyVolMethod++)) {
+					Cnt_ApplyVolMethod = 0;
 					// Use Voltage method if difference is large
 					displayed_soc_temp = soc_voltage;
 					update_rsoc_on_voltageMethod(info, soc_voltage);
+					SUSPEND_PRINT(KERN_DEBUG "PMU: %s(%d) : soc_voltage(%d) DSOC(%d)\n", __func__,__LINE__, soc_voltage, displayed_soc_temp);
 				}
 				else {
-					if ((soc_current - soc_voltage) > 1000)
+					if ((soc_current - soc_voltage) < 1000)
 						Cnt_ApplyVolMethod = 0;
 					// Use Current method if difference is small
 					displayed_soc_temp = soc_current;
