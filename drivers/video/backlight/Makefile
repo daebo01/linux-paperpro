@@ -41,3 +41,4 @@ obj-$(CONFIG_BACKLIGHT_DA9052)	+= da9052_bl.o
 obj-$(CONFIG_BACKLIGHT_LM3630A)	+= lm3630a_bl.o lm3630a_bl_tables.o
 obj-$(CONFIG_BACKLIGHT_MXC_MSP430) += mxc_msp430_fl.o
 obj-$(CONFIG_MACH_MX6SL_NTX) += fl_ht68f20.o
+obj-$(CONFIG_BACKLIGHT_TLC5947)	+= tlc5947.o

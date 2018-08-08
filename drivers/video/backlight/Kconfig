@@ -344,6 +344,12 @@ config BACKLIGHT_LM3630A
 	help
 	  This supports TI LM3630A Backlight Driver
 
+config BACKLIGHT_TLC5947
+	tristate "Backlight Driver for TLC5947"
+	depends on SPI
+	help
+	  This supports TI TLC5947 Backlight Driver
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT

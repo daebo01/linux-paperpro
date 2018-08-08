@@ -55,6 +55,7 @@
 #include <linux/power/sabresd_battery.h>
 #include <../drivers/misc/ntx-misc.h>
 #include <linux/platform_data/lm3630a_bl.h>
+#include <linux/platform_data/tlc5947.h>
 #include <linux/i2c/si114x.h>
 
 #include <mach/common.h>
@@ -805,7 +806,7 @@ static int __init max17135_regulator_init(struct max17135 *max17135)
 }
 
 static int mx6_ntx_spi_cs[] = {
-	MX6_BRD_ECSPI1_CS0,
+	IMX_GPIO_NR(2, 22),
 };
 
 static const struct spi_imx_master mx6_ntx_spi_data __initconst = {
@@ -845,12 +846,27 @@ static struct spi_board_info m25p32_spi0_board_info[] __initdata = {
 };
 #endif
 
+static struct tlc5947_platform_data tlc5947_data = {
+	.gpio_power_on = IMX_GPIO_NR(3, 29),
+	.gpio_xlat = IMX_GPIO_NR(3, 31),
+	.gpio_blank = IMX_GPIO_NR(2, 10),
+};
+
+static struct spi_board_info tlc5947_spi0_board_info[] __initdata = {
+	{
+	/* The modalias must be the same as spi device driver name */
+	.modalias	= "tlc5947_bl",
+	.max_speed_hz	= 20000000,
+	.bus_num	= 0,
+	.chip_select	= 0,
+	.platform_data	= &tlc5947_data,
+	},
+};
+
 static void spi_device_init(void)
 {
-#if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
-	spi_register_board_info(m25p32_spi0_board_info,
-				ARRAY_SIZE(m25p32_spi0_board_info));
-#endif
+	spi_register_board_info(tlc5947_spi0_board_info,
+				ARRAY_SIZE(tlc5947_spi0_board_info));
 }
 
 static struct imx_ssi_platform_data mx6_sabresd_ssi_pdata = {
@@ -4722,8 +4738,8 @@ static void __init mx6_ntx_init(void)
 			pdata_ldo7_0.init_apply = 1;
 		}
 
-		if (58==gptHWCFG->m_val.bPCB || 61==gptHWCFG->m_val.bPCB) {
-			// E60QJX/E60QKX .
+		if (58==gptHWCFG->m_val.bPCB || 61==gptHWCFG->m_val.bPCB || 67<=gptHWCFG->m_val.bPCB) {
+			// E60QJX/E60QKX & device after E70Q1x.
 
 			// LDO_1V8 not used .
 			pdata_ldo8_0.regulator.constraints.always_on = 0;
@@ -4862,9 +4878,19 @@ static void __init mx6_ntx_init(void)
 //	}
 //	imx6q_add_imx_snvs_rtc();
 
-	/* SPI */
-//	imx6q_add_ecspi(0, &mx6_ntx_spi_data);
-//	spi_device_init();
+
+	if (8==gptHWCFG->m_val.bFL_PWM) {
+		// FL is TLC5947
+		mxc_iomux_v3_setup_pad (MX6SL_PAD_LCD_DAT0__ECSPI1_MOSI);	
+		mxc_iomux_v3_setup_pad (MX6SL_PAD_LCD_DAT3__ECSPI1_SCLK);
+		mxc_iomux_v3_setup_pad (MX6SL_PAD_LCD_DAT2__ECSPI1_SS0);	
+		mxc_iomux_v3_setup_pad (MX6SL_PAD_KEY_ROW2__GPIO_3_29_OUTPUT);	// FL_PWR_ON
+		mxc_iomux_v3_setup_pad (MX6SL_PAD_KEY_ROW3__GPIO_3_31);		// XLAT
+		mxc_iomux_v3_setup_pad (MX6SL_PAD_EPDC_PWRCTRL3__GPIO_2_10);	// Blank
+		/* SPI */
+		imx6q_add_ecspi(0, &mx6_ntx_spi_data);
+		spi_device_init();
+	}
 
 //	mx6sl_ntx_init_pfuze100(0);
 	imx6q_add_anatop_thermal_imx(1, &mx6sl_anatop_thermal_data);
