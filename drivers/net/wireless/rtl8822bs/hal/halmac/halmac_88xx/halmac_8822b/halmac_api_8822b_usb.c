@@ -15,6 +15,7 @@ halmac_mac_power_switch_8822b_usb(
 )
 {
 	u8 interface_mask;
+	u8 value8;
 	VOID *pDriver_adapter = NULL;
 	PHALMAC_API pHalmac_api;
 
@@ -33,11 +34,14 @@ halmac_mac_power_switch_8822b_usb(
 
 	interface_mask = HALMAC_PWR_INTF_USB_MSK;
 
-	if (0xEA == HALMAC_REG_READ_8(pHalmac_adapter, REG_CR))
+	value8 = HALMAC_REG_READ_8(pHalmac_adapter, REG_CR);
+	if (0xEA == value8)
 		pHalmac_adapter->halmac_state.mac_power = HALMAC_MAC_POWER_OFF;
+	else
+		pHalmac_adapter->halmac_state.mac_power = HALMAC_MAC_POWER_ON;
 
 	/*Check if power switch is needed*/
-	if (halmac_power == pHalmac_adapter->halmac_state.mac_power) {
+	if (halmac_power == HALMAC_MAC_POWER_ON && pHalmac_adapter->halmac_state.mac_power == HALMAC_MAC_POWER_ON) {
 		PLATFORM_MSG_PRINT(pDriver_adapter, HALMAC_MSG_PWR, HALMAC_DBG_WARN, "halmac_mac_power_switch power state unchange!\n");
 		return HALMAC_RET_PWR_UNCHANGE;
 	} else {

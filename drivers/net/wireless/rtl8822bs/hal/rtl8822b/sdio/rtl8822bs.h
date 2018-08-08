@@ -21,10 +21,7 @@
 #define _RTL8822BS_H_
 
 #include <drv_types.h>		/* PADAPTER, struct dvobj_priv and etc. */
-#include "../../hal_halmac.h"	/* HALMAC_RX_FIFO_SIZE_8822B */
 
-
-#define MAX_RECVBUF_SZ_8822B	HALMAC_RX_FIFO_SIZE_8822B
 
 /* rtl8822bs_halinit.c */
 u32 rtl8822bs_init(PADAPTER);
@@ -34,7 +31,12 @@ void rtl8822bs_init_default_value(PADAPTER);
 int rtl8822bs_halmac_init_adapter(PADAPTER);
 
 /* rtl8822bs_io.c */
+u32 rtl8822bs_read_port(struct dvobj_priv *, u32 cnt, u8 *mem);
 u32 rtl8822bs_write_port(struct dvobj_priv *, u32 cnt, u8 *mem);
+
+#ifdef CONFIG_PLATFORM_ZTE_ZX296716
+extern void dw_mci_clear_sdio_irq_status(void);
+#endif /* CONFIG_PLATFORM_ZTE_ZX296716 */
 
 /* rtl8822bs_led.c */
 void rtl8822bs_initswleds(PADAPTER);
@@ -54,10 +56,11 @@ s32 rtl8822bs_init_recv_priv(PADAPTER);
 void rtl8822bs_free_recv_priv(PADAPTER);
 _pkt *rtl8822bs_alloc_recvbuf_skb(struct recv_buf *, u32 size);
 void rtl8822bs_free_recvbuf_skb(struct recv_buf *);
+s32 rtl8822bs_recv_hdl(_adapter *adapter);
 void rtl8822bs_rxhandler(PADAPTER, struct recv_buf *);
 
 /* rtl8822bs_ops.c */
-u32 rtl8822bs_get_interrupt(PADAPTER);
+void rtl8822bs_get_interrupt(PADAPTER adapter, u32 *hisr, u32 *rx_len);
 void rtl8822bs_clear_interrupt(PADAPTER, u32 hisr);
 void rtl8822bs_init_interrupt(PADAPTER);
 

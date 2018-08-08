@@ -25,7 +25,11 @@
 #include "../hal/halmac/halmac_api.h"	/* MAC REG definition */
 
 
+#ifdef CONFIG_SUPPORT_TRX_SHARED
+#define MAX_RECVBUF_SZ		HALMAC_RX_FIFO_SIZE_RX_FIFO_EXPANDING_1_BLOCK_8822B
+#else /* !CONFIG_SUPPORT_TRX_SHARED */
 #define MAX_RECVBUF_SZ		HALMAC_RX_FIFO_SIZE_8822B
+#endif /* !CONFIG_SUPPORT_TRX_SHARED */
 
 /*
  * MAC Register definition
@@ -42,6 +46,7 @@
 #define REG_TSFTR1		REG_FREERUN_CNT_8822B	/* hal_com.c */
 #define REG_RXFLTMAP2		REG_RXFLTMAP_8822B	/* rtw_mp.c */
 #define REG_WOWLAN_WAKE_REASON	0x01C7 /* hal_com.c */
+#define REG_GPIO_PIN_CTRL_2		REG_GPIO_EXT_CTRL_8822B		/* hal_com.c */
 
 /* RXERR_RPT, for rtw_mp.c */
 #define RXERR_TYPE_OFDM_PPDU		0
@@ -194,22 +199,6 @@
 #define RF_ModeTableData1	0x32	/* rtl8822b_phy.c */
 #define RF_0x52			0x52
 #define RF_WeLut_Jaguar		0xEF	/* rtl8822b_phy.c */
-
-/*
- * 8822B files path
- */
-#define RTL8822B_FW_IMG		"rtl8822b/FW_NIC.bin"
-#define RTL8822B_FW_WW_IMG	"rtl8822b/FW_WoWLAN.bin"
-#define RTL8822B_PHY_REG	"rtl8822b/PHY_REG.txt"
-#define RTL8822B_PHY_RADIO_A	"rtl8822b/RadioA.txt"
-#define RTL8822B_PHY_RADIO_B	"rtl8822b/RadioB.txt"
-#define RTL8822B_TXPWR_TRACK	"rtl8822b/TxPowerTrack.txt"
-#define RTL8822B_AGC_TAB	"rtl8822b/AGC_TAB.txt"
-#define RTL8822B_PHY_MACREG	"rtl8822b/MAC_REG.txt"
-#define RTL8822B_PHY_REG_PG	"rtl8822b/PHY_REG_PG.txt"
-#define RTL8822B_PHY_REG_MP	"rtl8822b/PHY_REG_MP.txt"
-#define RTL8822B_TXPWR_LMT	"rtl8822b/TXPWR_LMT.txt"
-
 
 /* General Functions */
 void rtl8822b_init_hal_spec(PADAPTER);				/* hal/hal_com.c */

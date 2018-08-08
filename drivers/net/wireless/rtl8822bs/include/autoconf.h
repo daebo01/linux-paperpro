@@ -22,8 +22,8 @@
  */
 #define AUTOCONF_INCLUDED
 
-#define RTL871X_MODULE_NAME "8822BS"
-#define DRV_NAME "rtl8822bs"
+#define RTL871X_MODULE_NAME "88x2BS"
+#define DRV_NAME "rtl88x2bs"
 
 /* Set CONFIG_RTL8822B from Makefile */
 #ifndef CONFIG_RTL8822B
@@ -70,7 +70,8 @@
 	#define CONFIG_WFD	/* Wi-Fi display */
 	#define CONFIG_P2P_REMOVE_GROUP_INFO
 	/*#define CONFIG_DBG_P2P*/
-	#define CONFIG_P2P_PS
+	/* Lucas@20170116, Default disable P2P PS to avoid P2P connect fail */
+	/*#define CONFIG_P2P_PS*/
 	/*#define CONFIG_P2P_IPS*/
 	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
 	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  /* Replace CONFIG_P2P_CHK_INVITE_CH_LIST flag */
@@ -98,7 +99,7 @@
 /* Set CONFIG_CONCURRENT_MODE from Makefile */
 #ifdef CONFIG_CONCURRENT_MODE
 	/*#define CONFIG_HWPORT_SWAP*/		/* Port0->Sec , Port1->Pri */
-	/*#define CONFIG_RUNTIME_PORT_SWITCH*/
+	#define CONFIG_RUNTIME_PORT_SWITCH
 	#ifndef CONFIG_RUNTIME_PORT_SWITCH
 		/* #define CONFIG_TSF_RESET_OFFLOAD */	/* For 2 PORT TSF SYNC. */
 	#endif
@@ -112,10 +113,6 @@
 /*#define CONFIG_80211D*/
 
 /*#define CONFIG_BEAMFORMING*/
-#ifdef CONFIG_BEAMFORMING
-#define BEAMFORMING_SUPPORT 0	/* Use driver self mechanism, not phydm */
-#define RTW_BEAMFORMING_VERSION_2
-#endif /* CONFIG_BEAMFORMING */
 
 
 /*
@@ -125,10 +122,7 @@
 /* Set CONFIG_ANTENNA_DIVERSITY from Makefile */
 /*#define SUPPORT_HW_RFOFF_DETECTED*/
 /*#define CONFIG_SW_LED*/
-/*
- * CCX report is not ready yet at 2016/03/07
- */
-/*#define CONFIG_XMIT_ACK*/
+#define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
 	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 #endif
@@ -138,11 +132,16 @@
 #define DISABLE_BB_RF		0
 #define RTW_NOTCH_FILTER	0 /* 0:Disable, 1:Enable */
 
+#define CONFIG_SUPPORT_TRX_SHARED
+#ifdef CONFIG_SUPPORT_TRX_SHARED
+#define DFT_TRX_SHARE_MODE	1
+#endif
 
 /*
  * Software feature Related Config
  */
 #define RTW_HALMAC		/* Use HALMAC architecture, necessary for 8822B */
+#define CONFIG_RECV_THREAD_MODE
 
 
 /*
@@ -150,7 +149,7 @@
  */
 #define CONFIG_TX_AGGREGATION
 #define CONFIG_XMIT_THREAD_MODE	/* necessary for SDIO */
-#define CONFIG_SDIO_TX_ENABLE_AVAL_INT
+/*#define CONFIG_SDIO_TX_ENABLE_AVAL_INT*/ /* not implemented yet */
 #define CONFIG_SDIO_RX_COPY
 
 
@@ -169,6 +168,21 @@
 /*#define CONFIG_PATCH_JOIN_WRONG_CHANNEL*/
 #define CONFIG_ATTEMPT_TO_FIX_AP_BEACON_ERROR
 
+#ifdef CONFIG_RTW_NAPI
+/*#define CONFIG_RTW_NAPI_DYNAMIC*/
+#define CONFIG_RTW_NAPI_V2
+#endif
+
+#define RTW_DYNAMIC_AMPDU_SIZE
+#ifdef RTW_DYNAMIC_AMPDU_SIZE
+#ifdef CONFIG_SUPPORT_TRX_SHARED
+#define CONFIG_RTW_RX_AMPDU_SZ_LIMIT_1SS {0xFF, 0xFF, 0xFF, 0xFF}
+#define CONFIG_RTW_RX_AMPDU_SZ_LIMIT_2SS {0xFF, 0xFF, 0xFF, 0xFF}
+#else /* !CONFIG_SUPPORT_TRX_SHARED */
+#define CONFIG_RTW_RX_AMPDU_SZ_LIMIT_1SS {0xFF, 0xFF, 0xFF, 0xFF}
+#define CONFIG_RTW_RX_AMPDU_SZ_LIMIT_2SS {0xFF, 0xFF, 0xFF, 0xFF}
+#endif /* CONFIG_SUPPORT_TRX_SHARED */
+#endif /* RTW_DYNAMIC_AMPDU_SIZE */
 
 /*
  * Platform
@@ -202,11 +216,12 @@
 #endif /* !CONFIG_MP_INCLUDED */
 
 #ifdef CONFIG_POWER_SAVING
-	#define CONFIG_IPS
+	/*#define CONFIG_IPS*/
 	#define CONFIG_LPS
 
 	#if defined(CONFIG_LPS) && (defined(CONFIG_GSPI_HCI) || defined(CONFIG_SDIO_HCI))
-	#define CONFIG_LPS_LCLK
+	/* Temporarily disable LCLK(32K) for coex issue, Lucas@20170608 */
+	/*#define CONFIG_LPS_LCLK*/
 	#endif
 
 	#ifdef CONFIG_LPS
@@ -228,7 +243,7 @@
 	#ifdef CONFIG_IPS
 	#define CONFIG_IPS_CHECK_IN_WD /* Do IPS Check in WatchDog. */
 	/*#define CONFIG_SWLPS_IN_IPS*/ /* Do SW LPS flow when entering and leaving IPS */
-	#define CONFIG_FWLPS_IN_IPS /* issue H2C command to let FW do LPS when entering IPS */
+	/*#define CONFIG_FWLPS_IN_IPS*/ /* issue H2C command to let FW do LPS when entering IPS */
 	#endif
 #endif /* CONFIG_POWER_SAVING */
 
@@ -239,16 +254,13 @@
 	#endif
 #endif /* !CONFIG_BT_COEXIST */
 
-#ifdef CONFIG_WOWLAN
-	/*#define CONFIG_GTK_OL*/
-	#define CONFIG_ARP_KEEP_ALIVE
-#endif /* CONFIG_WOWLAN */
-
 #ifdef CONFIG_GPIO_WAKEUP
 	#ifndef WAKEUP_GPIO_IDX
-		#define WAKEUP_GPIO_IDX	12	/* WIFI Chip Side */
+		/* 1315 module WIFI Chip Side */
+		#define WAKEUP_GPIO_IDX	10
 	#endif /* !WAKEUP_GPIO_IDX */
 #endif /* CONFIG_GPIO_WAKEUP */
+
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
 #define CONFIG_HW_ANTENNA_DIVERSITY

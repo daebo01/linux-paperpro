@@ -182,7 +182,7 @@ static void issue_group_disc_req(struct wifidirect_info *pwdinfo, u8 *da)
 
 	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
-	SetFrameSubType(pframe, WIFI_ACTION);
+	set_frame_sub_type(pframe, WIFI_ACTION);
 
 	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);
 	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
@@ -242,7 +242,7 @@ static void issue_p2p_devdisc_resp(struct wifidirect_info *pwdinfo, u8 *da, u8 s
 
 	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
-	SetFrameSubType(pframe, WIFI_ACTION);
+	set_frame_sub_type(pframe, WIFI_ACTION);
 
 	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);
 	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
@@ -320,7 +320,7 @@ static void issue_p2p_provision_resp(struct wifidirect_info *pwdinfo, u8 *raddr,
 
 	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
-	SetFrameSubType(pframe, WIFI_ACTION);
+	set_frame_sub_type(pframe, WIFI_ACTION);
 
 	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);
 	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
@@ -424,7 +424,7 @@ static void issue_p2p_presence_resp(struct wifidirect_info *pwdinfo, u8 *da, u8 
 
 	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
-	SetFrameSubType(pframe, WIFI_ACTION);
+	set_frame_sub_type(pframe, WIFI_ACTION);
 
 	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);
 	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
@@ -2328,7 +2328,7 @@ u32 process_assoc_req_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pframe, uint l
 	if (!rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO))
 		return P2P_STATUS_FAIL_REQUEST_UNABLE;
 
-	frame_type = GetFrameSubType(pframe);
+	frame_type = get_frame_sub_type(pframe);
 	if (frame_type == WIFI_ASSOCREQ)
 		ie_offset = _ASOCREQ_IE_OFFSET_;
 	else /* WIFI_REASSOCREQ */
@@ -2491,7 +2491,7 @@ u32 process_p2p_devdisc_req(struct wifidirect_info *pwdinfo, u8 *pframe, uint le
 
 
 	/* issue Device Discoverability Response */
-	issue_p2p_devdisc_resp(pwdinfo, GetAddr2Ptr(pframe), status, dialogToken);
+	issue_p2p_devdisc_resp(pwdinfo, get_addr2_ptr(pframe), status, dialogToken);
 
 
 	return (status == P2P_STATUS_SUCCESS) ? _TRUE : _FALSE;
@@ -2535,7 +2535,7 @@ u8 process_p2p_provdisc_req(struct wifidirect_info *pwdinfo,  u8 *pframe, uint l
 				break;
 			}
 			}
-			issue_p2p_provision_resp(pwdinfo, GetAddr2Ptr(pframe), frame_body, uconfig_method);
+			issue_p2p_provision_resp(pwdinfo, get_addr2_ptr(pframe), frame_body, uconfig_method);
 		}
 	}
 	RTW_INFO("[%s] config method = %s\n", __FUNCTION__, pwdinfo->rx_prov_disc_info.strconfig_method_desc_of_prov_disc_req);
@@ -3073,7 +3073,7 @@ u8 process_p2p_presence_req(struct wifidirect_info *pwdinfo, u8 *pframe, uint le
 
 	/* todo: check NoA attribute */
 
-	issue_p2p_presence_resp(pwdinfo, GetAddr2Ptr(pframe), status, dialogToken);
+	issue_p2p_presence_resp(pwdinfo, get_addr2_ptr(pframe), status, dialogToken);
 
 	return _TRUE;
 }
@@ -3310,13 +3310,16 @@ static void ro_ch_handler(_adapter *padapter)
 	}
 
 	set_channel_bwmode(padapter, ch, offset, bw);
+	if (rtw_mi_buddy_check_fwstate(padapter, _FW_LINKED))
+		rtw_mi_buddy_issue_nulldata(padapter, NULL, 0, 3, 500);
+
 
 	rtw_p2p_set_state(pwdinfo, rtw_p2p_pre_state(pwdinfo));
 #ifdef CONFIG_DEBUG_CFG80211
 	RTW_INFO("%s, role=%d, p2p_state=%d\n", __func__, rtw_p2p_role(pwdinfo), rtw_p2p_state(pwdinfo));
 #endif
 
-	pcfg80211_wdinfo->is_ro_ch = _FALSE;
+	rtw_cfg80211_set_is_roch(padapter, _FALSE);
 	pcfg80211_wdinfo->last_ro_ch_time = rtw_get_current_time();
 
 	RTW_INFO("cfg80211_remain_on_channel_expired cookie:0x%llx, ch=%d, bw=%d, offset=%d\n"
@@ -3328,6 +3331,9 @@ static void ro_ch_handler(_adapter *padapter)
 				       &pcfg80211_wdinfo->remain_on_ch_channel,
 			       pcfg80211_wdinfo->remain_on_ch_type, GFP_KERNEL);
 
+#ifdef CONFIG_BT_COEXIST
+	rtw_btcoex_ScanNotify(padapter, _FALSE);
+#endif
 }
 
 static void ro_ch_timer_process(void *FunctionContext)
@@ -3348,6 +3354,11 @@ static void rtw_change_p2pie_op_ch(_adapter *padapter, const u8 *frame_body, u32
 {
 	u8 *ies, *p2p_ie;
 	u32 ies_len, p2p_ielen;
+
+#ifdef CONFIG_MCC_MODE
+	if (MCC_EN(padapter))
+		return;
+#endif /* CONFIG_MCC_MODE */
 
 	ies = (u8 *)(frame_body + _PUBLIC_ACTION_IE_OFFSET_);
 	ies_len = len - _PUBLIC_ACTION_IE_OFFSET_;
@@ -3374,6 +3385,11 @@ static void rtw_change_p2pie_ch_list(_adapter *padapter, const u8 *frame_body, u
 {
 	u8 *ies, *p2p_ie;
 	u32 ies_len, p2p_ielen;
+
+#ifdef CONFIG_MCC_MODE
+	if (MCC_EN(padapter))
+		return;
+#endif /* CONFIG_MCC_MODE */
 
 	ies = (u8 *)(frame_body + _PUBLIC_ACTION_IE_OFFSET_);
 	ies_len = len - _PUBLIC_ACTION_IE_OFFSET_;
@@ -3500,6 +3516,11 @@ static void rtw_cfg80211_adjust_p2pie_channel(_adapter *padapter, const u8 *fram
 	u8 *ies, *p2p_ie;
 	u32 ies_len, p2p_ielen;
 	u8 union_ch = rtw_mi_get_union_chan(padapter);
+
+#ifdef CONFIG_MCC_MODE
+	if (MCC_EN(padapter))
+		return;
+#endif /* CONFIG_MCC_MODE */
 
 	ies = (u8 *)(frame_body + _PUBLIC_ACTION_IE_OFFSET_);
 	ies_len = len - _PUBLIC_ACTION_IE_OFFSET_;
@@ -3833,7 +3854,7 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 				if (nego_info->token != dialogToken)
 					rtw_wdev_nego_info_init(nego_info);
 
-				_rtw_memcpy(nego_info->peer_mac, tx ? GetAddr1Ptr(buf) : GetAddr2Ptr(buf), ETH_ALEN);
+				_rtw_memcpy(nego_info->peer_mac, tx ? GetAddr1Ptr(buf) : get_addr2_ptr(buf), ETH_ALEN);
 				nego_info->active = tx ? 1 : 0;
 				nego_info->token = dialogToken;
 				nego_info->req_op_ch = op_ch;
@@ -3880,7 +3901,7 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 					status = *cont;
 
 				if (nego_info->token == dialogToken && nego_info->state == 0
-				    && _rtw_memcmp(nego_info->peer_mac, tx ? GetAddr1Ptr(buf) : GetAddr2Ptr(buf), ETH_ALEN) == _TRUE
+				    && _rtw_memcmp(nego_info->peer_mac, tx ? GetAddr1Ptr(buf) : get_addr2_ptr(buf), ETH_ALEN) == _TRUE
 				   ) {
 					nego_info->status = (status == -1) ? 0xff : status;
 					nego_info->rsp_op_ch = op_ch;
@@ -3927,7 +3948,7 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 					status = *cont;
 
 				if (nego_info->token == dialogToken && nego_info->state == 1
-				    && _rtw_memcmp(nego_info->peer_mac, tx ? GetAddr1Ptr(buf) : GetAddr2Ptr(buf), ETH_ALEN) == _TRUE
+				    && _rtw_memcmp(nego_info->peer_mac, tx ? GetAddr1Ptr(buf) : get_addr2_ptr(buf), ETH_ALEN) == _TRUE
 				   ) {
 					nego_info->status = (status == -1) ? 0xff : status;
 					nego_info->conf_op_ch = (op_ch == -1) ? 0 : op_ch;
@@ -3972,7 +3993,7 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 				if (invit_info->token != dialogToken)
 					rtw_wdev_invit_info_init(invit_info);
 
-				_rtw_memcpy(invit_info->peer_mac, tx ? GetAddr1Ptr(buf) : GetAddr2Ptr(buf), ETH_ALEN);
+				_rtw_memcpy(invit_info->peer_mac, tx ? GetAddr1Ptr(buf) : get_addr2_ptr(buf), ETH_ALEN);
 				invit_info->active = tx ? 1 : 0;
 				invit_info->token = dialogToken;
 				invit_info->flags = (flags == -1) ? 0x0 : flags;
@@ -4024,7 +4045,7 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 					op_ch = *(cont + 4);
 
 				if (invit_info->token == dialogToken && invit_info->state == 0
-				    && _rtw_memcmp(invit_info->peer_mac, tx ? GetAddr1Ptr(buf) : GetAddr2Ptr(buf), ETH_ALEN) == _TRUE
+				    && _rtw_memcmp(invit_info->peer_mac, tx ? GetAddr1Ptr(buf) : get_addr2_ptr(buf), ETH_ALEN) == _TRUE
 				   ) {
 					invit_info->status = (status == -1) ? 0xff : status;
 					invit_info->rsp_op_ch = op_ch;
@@ -4250,7 +4271,7 @@ void process_p2p_ps_ie(PADAPTER padapter, u8 *IEs, u32 IELength)
 	if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
 		return;
 #ifdef CONFIG_CONCURRENT_MODE
-#ifndef CONFIG_SUPPORT_FW_MULTI_PORT
+#ifndef CONFIG_FW_MULTI_PORT_SUPPORT
 	if (padapter->hw_port != HW_PORT0)
 		return;
 #endif
@@ -4399,7 +4420,7 @@ u8 p2p_ps_wk_cmd(_adapter *padapter, u8 p2p_ps_state, u8 enqueue)
 
 	if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)
 #ifdef CONFIG_CONCURRENT_MODE
-#ifndef CONFIG_SUPPORT_FW_MULTI_PORT
+#ifndef CONFIG_FW_MULTI_PORT_SUPPORT
 	    || (padapter->hw_port != HW_PORT0)
 #endif
 #endif

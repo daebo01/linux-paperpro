@@ -17,7 +17,6 @@
  *
  *
  ******************************************************************************/
-extern void ntx_wifi_power_ctrl(int iIsWifiEnable);
 #ifndef CONFIG_PLATFORM_OPS
 /*
  * Return:
@@ -27,13 +26,12 @@ extern void ntx_wifi_power_ctrl(int iIsWifiEnable);
 int platform_wifi_power_on(void)
 {
 	int ret = 0;
-	ntx_wifi_power_ctrl(1);
+
 
 	return ret;
 }
 
 void platform_wifi_power_off(void)
 {
-	ntx_wifi_power_ctrl(0);
 }
 #endif /* !CONFIG_PLATFORM_OPS */

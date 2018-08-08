@@ -42,6 +42,7 @@ struct hw_port_reg {
 	u32 bcn_space;		/*reg_offset*/
 	u8 bcn_space_shift;
 	u16 bcn_space_mask;
+	u32	ps_aid;			/*reg_offset*/
 };
 
 
@@ -77,8 +78,6 @@ void rtl8822b_gethwreg(PADAPTER, u8 variable, u8 *pval);
 u8 rtl8822b_sethaldefvar(PADAPTER, HAL_DEF_VARIABLE, void *pval);
 u8 rtl8822b_gethaldefvar(PADAPTER, HAL_DEF_VARIABLE, void *pval);
 void rtl8822b_set_hal_ops(PADAPTER);
-void rtl8822b_resume_tx_beacon(PADAPTER);
-void rtl8822b_stop_tx_beacon(PADAPTER);
 
 /* tx */
 void rtl8822b_fill_txdesc_sectype(struct pkt_attrib *, u8 *ptxdesc);
@@ -87,6 +86,8 @@ void rtl8822b_fill_txdesc_phy(PADAPTER, struct pkt_attrib *, u8 *ptxdesc);
 void rtl8822b_fill_txdesc_force_bmc_camid(struct pkt_attrib *, u8 *ptxdesc);
 u8 rtl8822b_bw_mapping(PADAPTER, struct pkt_attrib *);
 u8 rtl8822b_sc_mapping(PADAPTER, struct pkt_attrib *);
+void rtl8822b_fill_txdesc_bf(struct xmit_frame *, u8 *desc);
+void rtl8822b_fill_txdesc_mgnt_bf(struct xmit_frame *, u8 *desc);
 void rtl8822b_cal_txdesc_chksum(PADAPTER, u8 *ptxdesc);
 void rtl8822b_update_txdesc(struct xmit_frame *, u8 *pbuf);
 void rtl8822b_dbg_dump_tx_desc(PADAPTER, int frame_tag, u8 *ptxdesc);
@@ -101,9 +102,9 @@ void rtl8822b_set_FwMediaStatusRpt_cmd(PADAPTER, u8 mstatus, u8 macid);
 void rtl8822b_set_FwMacIdConfig_cmd(PADAPTER , u64 bitmap, u8 *arg, u8 bw);
 void rtl8822b_set_FwRssiSetting_cmd(PADAPTER, u8 *param);
 void rtl8822b_set_FwPwrMode_cmd(PADAPTER, u8 psmode);
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 void rtl8822b_set_p2p_ps_offload_cmd(PADAPTER, u8 p2p_ps_state);
-#endif
+#endif /* CONFIG_P2P_PS */
 void rtl8822b_fw_update_beacon_cmd(PADAPTER);
 void rtl8822b_c2h_handler(PADAPTER, u8 *pbuf, u16 length);
 void rtl8822b_c2h_handler_no_io(PADAPTER, u8 *pbuf, u16 length);
@@ -126,18 +127,18 @@ void rtl8822b_write_bb_reg(PADAPTER, u32 addr, u32 mask, u32 val);
 u32 rtl8822b_read_rf_reg(PADAPTER, u8 path, u32 addr, u32 mask);
 void rtl8822b_write_rf_reg(PADAPTER, u8 path, u32 addr, u32 mask, u32 val);
 void rtl8822b_set_channel_bw(PADAPTER, u8 center_ch, CHANNEL_WIDTH, u8 offset40, u8 offset80);
-void rtl8822b_set_channel(PADAPTER, u8 center_ch);
-void rtl8822b_set_bw_mode(PADAPTER, CHANNEL_WIDTH, u8 offset);
 void rtl8822b_set_tx_power_level(PADAPTER, u8 channel);
 void rtl8822b_get_tx_power_level(PADAPTER, s32 *power);
 void rtl8822b_set_tx_power_index(PADAPTER, u32 powerindex, u8 rfpath, u8 rate);
-u8 rtl8822b_get_tx_power_index(PADAPTER, u8 rfpath, u8 rate, u8 bandwidth, u8 channel);
+u8 rtl8822b_get_tx_power_index(PADAPTER, u8 rfpath, u8 rate, u8 bandwidth, u8 channel, struct txpwr_idx_comp *tic);
 void rtl8822b_notch_filter_switch(PADAPTER, bool enable);
 #ifdef CONFIG_BEAMFORMING
-void rtl8822b_phy_init_beamforming(PADAPTER);
-void rtl8822b_phy_sounding_enter(PADAPTER, struct sta_info*);
-void rtl8822b_phy_sounding_leave(PADAPTER, u8 *addr);
-void rtl8822b_phy_sounding_set_gid_table(PADAPTER, struct beamformer_entry*);
+void rtl8822b_phy_bf_init(PADAPTER);
+void rtl8822b_phy_bf_enter(PADAPTER, struct sta_info*);
+void rtl8822b_phy_bf_leave(PADAPTER, u8 *addr);
+void rtl8822b_phy_bf_set_gid_table(PADAPTER, struct beamformer_entry*);
+void rtl8822b_phy_bf_set_csi_report(PADAPTER, struct _RT_CSI_INFO*);
+void rtl8822b_phy_bf_sounding_status(PADAPTER, u8 status);
 #endif /* CONFIG_BEAMFORMING */
 
 #endif /* _RTL8822B_H_ */

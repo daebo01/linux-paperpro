@@ -23,7 +23,6 @@
 #include <hal_data.h>		/* HAL_DATA_TYPE */
 #include "../../hal_halmac.h"	/* BIT_ACRC32_8822B, HALMAC_RX_DESC_SIZE_8822B and etc. */
 #include "../rtl8822b.h"	/* rtl8822b_rxdesc2attribute(), rtl8822b_c2h_handler_no_io() */
-#include "rtl8822bs.h"		/* MAX_RECVBUF_SZ_8822B */
 
 
 static s32 initrecvbuf(struct recv_buf *precvbuf, PADAPTER adapter)
@@ -43,15 +42,22 @@ static void freerecvbuf(struct recv_buf *precvbuf)
 
 static void start_rx_handle(PADAPTER p)
 {
-#ifdef PLATFORM_LINUX
+#ifdef CONFIG_RECV_THREAD_MODE
+	_rtw_up_sema(&p->recvpriv.recv_sema);
+#else
+	#ifdef PLATFORM_LINUX
 	tasklet_schedule(&p->recvpriv.recv_tasklet);
+	#endif
 #endif
 }
 
 static void stop_rx_handle(PADAPTER p)
 {
-#ifdef PLATFORM_LINUX
+#ifdef CONFIG_RECV_THREAD_MODE
+#else
+	#ifdef PLATFORM_LINUX
 	tasklet_kill(&p->recvpriv.recv_tasklet);
+	#endif
 #endif
 }
 
@@ -91,12 +97,12 @@ static _pkt *alloc_recvbuf_skb(struct recv_buf *recvbuf, u32 size)
 
 /*
  * Description:
- *	Allocate skb for recv_buf, the size is MAX_RECVBUF_SZ_8822B (24KB)
+ *	Allocate skb for recv_buf, the size is MAX_RECVBUF_SZ
  *
  * Parameters:
  *	recvbuf	pointer of struct recv_buf
  *	size	skb size, only valid when NOT define CONFIG_SDIO_RX_COPY.
- *		If CONFIG_SDIO_RX_COPY, size always be MAX_RECVBUF_SZ_8822B.
+ *		If CONFIG_SDIO_RX_COPY, size always be MAX_RECVBUF_SZ.
  *
  * Return:
  *	Pointer of _pkt, otherwise NULL.
@@ -115,7 +121,7 @@ _pkt *rtl8822bs_alloc_recvbuf_skb(struct recv_buf *recvbuf, u32 size)
 	}
 
 	RTW_INFO("%s: <WARN> skb not exist in recv_buf!\n", __FUNCTION__);
-	size = MAX_RECVBUF_SZ_8822B;
+	size = MAX_RECVBUF_SZ;
 #else /* !CONFIG_SDIO_RX_COPY */
 	if (skb) {
 		RTW_INFO("%s: <WARN> skb already exist in recv_buf!\n", __FUNCTION__);
@@ -159,7 +165,7 @@ static inline s32 os_recvbuf_resource_alloc(PADAPTER adapter, struct recv_buf *r
 	s32 ret = _SUCCESS;
 
 #ifdef CONFIG_SDIO_RX_COPY
-	alloc_recvbuf_skb(recvbuf, MAX_RECVBUF_SZ_8822B);
+	alloc_recvbuf_skb(recvbuf, MAX_RECVBUF_SZ);
 #endif /* CONFIG_SDIO_RX_COPY */
 
 	return ret;
@@ -406,8 +412,8 @@ static _pkt *prepare_recvframe_pkt(struct recv_buf *recvbuf, union recv_frame *r
 
 /*
  * Return:
- *	_TRUE	Finish processing recv_buf
- *	_FALSE	Something fail to process recv_buf
+ *	_SUCCESS	Finish processing recv_buf
+ *	others		Something fail to process recv_buf
  */
 static u8 recvbuf_handler(struct recv_buf *recvbuf)
 {
@@ -418,7 +424,7 @@ static u8 recvbuf_handler(struct recv_buf *recvbuf)
 	_pkt *pkt;
 	u32 rx_report_sz, pkt_offset;
 	u8 *ptr;
-	u8 ret = _TRUE;
+	u8 ret = _SUCCESS;
 
 
 	p = recvbuf->adapter;
@@ -429,7 +435,7 @@ static u8 recvbuf_handler(struct recv_buf *recvbuf)
 		recvframe = rtw_alloc_recvframe(&recvpriv->free_recv_queue);
 		if (!recvframe) {
 			RTW_INFO("%s: <WARN> no enough recv frame!\n", __FUNCTION__);
-			ret = _FALSE;
+			ret = RTW_RFRAME_UNAVAIL;
 			break;
 		}
 
@@ -473,7 +479,7 @@ static u8 recvbuf_handler(struct recv_buf *recvbuf)
 			pkt = prepare_recvframe_pkt(recvbuf, recvframe);
 			if (!pkt) {
 				rtw_free_recvframe(recvframe, &recvpriv->free_recv_queue);
-				ret = _FALSE;
+				ret = RTW_RFRAME_PKT_UNAVAIL;
 				break;
 			}
 
@@ -493,17 +499,28 @@ static u8 recvbuf_handler(struct recv_buf *recvbuf)
 	return ret;
 }
 
-static void recv_tasklet(void *priv)
+s32 rtl8822bs_recv_hdl(_adapter *adapter)
 {
-	PADAPTER adapter;
 	struct recv_priv *recvpriv;
 	struct recv_buf *recvbuf;
 	u8 c2h = 0;
-	u8 ret = _TRUE;
+	s32 ret = _SUCCESS;
 
-
-	adapter = (PADAPTER)priv;
 	recvpriv = &adapter->recvpriv;
+
+#ifdef CONFIG_RTW_NAPI_DYNAMIC
+	if (adapter->registrypriv.en_napi) {
+		struct dvobj_priv *d;
+		struct registry_priv *registry;
+
+		d = adapter_to_dvobj(adapter);
+		registry = &adapter->registrypriv;
+		if (d->traffic_stat.cur_rx_tp > registry->napi_threshold)
+			d->en_napi_dynamic = 1;
+		else
+			d->en_napi_dynamic = 0;
+	}
+#endif /* CONFIG_RTW_NAPI_DYNAMIC */
 
 	do {
 		recvbuf = rtw_dequeue_recvbuf(&recvpriv->recv_buf_pending_queue);
@@ -516,10 +533,8 @@ static void recv_tasklet(void *priv)
 		else
 			ret = recvbuf_handler(recvbuf);
 
-		if (_FALSE == ret) {
+		if (_SUCCESS != ret) {
 			rtw_enqueue_recvbuf_to_head(recvbuf, &recvpriv->recv_buf_pending_queue);
-			rtw_msleep_os(5);
-			start_rx_handle(adapter);
 			break;
 		}
 
@@ -527,6 +542,40 @@ static void recv_tasklet(void *priv)
 		rtl8822bs_free_recvbuf_skb(recvbuf);
 		rtw_enqueue_recvbuf(recvbuf, &recvpriv->free_recv_buf_queue);
 	} while (1);
+
+#ifdef CONFIG_RTW_NAPI
+#ifdef CONFIG_RTW_NAPI_V2
+	if (adapter->registrypriv.en_napi) {
+		struct dvobj_priv *d;
+		struct _ADAPTER *a;
+		u8 i;
+
+		d = adapter_to_dvobj(adapter);
+		for (i = 0; i < d->iface_nums; i++) {
+			a = d->padapters[i];
+			recvpriv = &a->recvpriv;
+			if ((rtw_if_up(a) == _TRUE)
+			    && skb_queue_len(&recvpriv->rx_napi_skb_queue))
+				napi_schedule(&a->napi);
+		}
+	}
+#endif /* CONFIG_RTW_NAPI_V2 */
+#endif /* CONFIG_RTW_NAPI */
+
+	return ret;
+}
+
+static void recv_tasklet(void *priv)
+{
+	PADAPTER adapter;
+	s32 ret;
+
+	adapter = (PADAPTER)priv;
+
+	ret = rtl8822bs_recv_hdl(adapter);
+	if (ret == RTW_RFRAME_UNAVAIL
+		|| ret == RTW_RFRAME_PKT_UNAVAIL)
+		start_rx_handle(adapter);
 }
 
 /*

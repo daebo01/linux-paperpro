@@ -102,10 +102,23 @@ void rtw_wfd_st_switch(struct sta_info *sta, bool on);
 	#define MLME_IS_GC(adapter) 0
 	#define MLME_IS_GO(adapter) 0
 #endif /* !CONFIG_P2P */
+
+#if defined(CONFIG_IOCTL_CFG80211) && defined(CONFIG_P2P)
+#define MLME_IS_ROCH(adapter) (rtw_cfg80211_get_is_roch(adapter) == _TRUE)
+#else
+#define MLME_IS_ROCH(adapter) 0
+#endif
+
 #define MLME_IS_MSRC(adapter) rtw_chk_miracast_mode((adapter), MIRACAST_SOURCE)
 #define MLME_IS_MSINK(adapter) rtw_chk_miracast_mode((adapter), MIRACAST_SINK)
 
-#define MLME_STATE_FMT "%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+#ifdef CONFIG_IOCTL_CFG80211
+#define MLME_IS_MGMT_TX(adapter) rtw_cfg80211_get_is_mgmt_tx(adapter)
+#else
+#define MLME_IS_MGMT_TX(adapter) 0
+#endif
+
+#define MLME_STATE_FMT "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
 #define MLME_STATE_ARG(adapter) \
 	MLME_IS_STA((adapter)) ? (MLME_IS_GC((adapter)) ? " GC" : " STA") : "", \
 	MLME_IS_AP((adapter)) ? (MLME_IS_GO((adapter)) ? " GO" : " AP") : "", \
@@ -120,6 +133,8 @@ void rtw_wfd_st_switch(struct sta_info *sta, bool on);
 	(MLME_STATE((adapter)) & WIFI_ASOC_STATE) ? " ASOC" : "", \
 	(MLME_STATE((adapter)) & WIFI_OP_CH_SWITCHING) ? " OP_CH_SW" : "", \
 	(MLME_STATE((adapter)) & WIFI_UNDER_WPS) ? " WPS" : "", \
+	MLME_IS_ROCH((adapter)) ? " ROCH" : "", \
+	MLME_IS_MGMT_TX((adapter)) ? " MGMT_TX" : "", \
 	(MLME_STATE((adapter)) & WIFI_SLEEP_STATE) ? " SLEEP" : ""
 
 #define _FW_UNDER_LINKING	WIFI_UNDER_LINKING
@@ -503,6 +518,65 @@ struct beacon_keys {
 	int group_cipher;
 	int is_8021x;
 };
+#ifdef CONFIG_RTW_80211R
+#define FT_ACTION_REQ_LIMIT	4
+
+typedef enum _RTW_WIFI_FT_STA_STATUS {
+	RTW_FT_UNASSOCIATED_STA = 0,
+	RTW_FT_AUTHENTICATING_STA,
+	RTW_FT_AUTHENTICATED_STA,
+	RTW_FT_ASSOCIATING_STA,
+	RTW_FT_ASSOCIATED_STA,
+	RTW_FT_REQUESTING_STA,
+	RTW_FT_REQUESTED_STA,
+	RTW_FT_CONFIRMED_STA,
+	RTW_FT_UNSPECIFIED_STA
+} RTW_WIFI_FT_STA_STATUS;
+
+#define rtw_chk_ft_status(adapter, status) ((adapter)->mlmepriv.ftpriv.ft_status == status)
+#define rtw_set_ft_status(adapter, status) \
+	do { \
+		((adapter)->mlmepriv.ftpriv.ft_status = status); \
+	} while (0)
+
+#define rtw_reset_ft_status(adapter) \
+	do { \
+		((adapter)->mlmepriv.ftpriv.ft_status = RTW_FT_UNASSOCIATED_STA); \
+	} while (0)
+
+typedef enum _RTW_WIFI_FT_CAPABILITY {
+	RTW_FT_STA_SUPPORTED = BIT0,
+	RTW_FT_STA_OVER_DS_SUPPORTED = BIT1,
+	RTW_FT_SUPPORTED = BIT2,
+	RTW_FT_OVER_DS_SUPPORTED = BIT3,
+} RTW_WIFI_FT_CAPABILITY;
+
+#define rtw_chk_ft_flags(adapter, flags) ((adapter)->mlmepriv.ftpriv.ft_flags & (flags))
+#define rtw_set_ft_flags(adapter, flags) \
+	do { \
+		((adapter)->mlmepriv.ftpriv.ft_flags |= (flags)); \
+	} while (0)
+
+#define rtw_clr_ft_flags(adapter, flags) \
+	do { \
+		((adapter)->mlmepriv.ftpriv.ft_flags &= ~(flags)); \
+	} while (0)
+
+#define RTW_MAX_FTIE_SZ	256
+typedef struct _ft_priv {
+	u16	mdid;
+	u8	ft_cap;	/*b0: FT over DS, b1: Resource Req Protocol Cap, b2~b7: Reserved*/
+	u8	updated_ft_ies[RTW_MAX_FTIE_SZ];
+	u16	updated_ft_ies_len;
+	u8	ft_action[RTW_MAX_FTIE_SZ];
+	u16	ft_action_len;
+	struct cfg80211_ft_event_params ft_event;
+	u8	ft_roam_on_expired;
+	u8	ft_flags;
+	u32 ft_status;
+	u32 ft_req_retry_cnt;
+} ft_priv;
+#endif
 
 struct mlme_priv {
 
@@ -518,13 +592,12 @@ struct mlme_priv {
 	u32 roam_scan_int_ms; /* scan interval for active roam */
 	u32 roam_scanr_exp_ms; /* scan result expire time in ms  for roam */
 	u8 roam_tgt_addr[ETH_ALEN]; /* request to roam to speicific target without other consideration */
+	u8 roam_rssi_threshold;
+	bool need_to_roam;
 #endif
 
 	u8	*nic_hdl;
 
-#ifdef SUPPLICANT_RTK_VERSION_LOWER_THAN_JB42
-	u8	not_indic_disco;
-#endif
 	_list		*pscanned;
 	_queue	free_bss_pool;
 	_queue	scanned_queue;
@@ -587,11 +660,11 @@ struct mlme_priv {
 	struct vht_priv	vhtpriv;
 #endif
 #ifdef CONFIG_BEAMFORMING
-#if (BEAMFORMING_SUPPORT == 0)/*for driver beamforming*/
 #ifndef RTW_BEAMFORMING_VERSION_2
+#if (BEAMFORMING_SUPPORT == 0)/*for driver beamforming*/
 	struct beamforming_info	beamforming_info;
-#endif /* !RTW_BEAMFORMING_VERSION_2 */
 #endif
+#endif /* !RTW_BEAMFORMING_VERSION_2 */
 #endif
 
 #ifdef CONFIG_DFS
@@ -601,9 +674,11 @@ struct mlme_priv {
 	/* TODO: move to rfctl */
 	_timer dfs_master_timer;
 #endif
+#ifdef CONFIG_RTW_80211R
+	ft_priv ftpriv;
+#endif
 
 	RT_LINK_DETECT_T	LinkDetectInfo;
-	_timer	dynamic_chk_timer; /* dynamic/periodic check timer */
 
 	u8	acm_mask; /* for wmm acm mask */
 	const struct country_chplan *country_ent;
@@ -651,6 +726,10 @@ struct mlme_priv {
 	u8 sw_to_20mhz; /*switch to 20Mhz BW*/
 #endif /* CONFIG_80211N_HT */
 
+#ifdef CONFIG_RTW_80211R
+	u8 *auth_rsp;
+	u32 auth_rsp_len;
+#endif
 	u8 *assoc_req;
 	u32 assoc_req_len;
 	u8 *assoc_rsp;
@@ -803,6 +882,10 @@ extern void rtw_wmm_event_callback(PADAPTER padapter, u8 *pbuf);
 #ifdef CONFIG_IEEE80211W
 void rtw_sta_timeout_event_callback(_adapter *adapter, u8 *pbuf);
 #endif /* CONFIG_IEEE80211W */
+#ifdef CONFIG_RTW_80211R
+void rtw_update_ft_stainfo(_adapter *padapter, WLAN_BSSID_EX *pnetwork);
+void rtw_ft_reassoc_event_callback(_adapter *padapter, u8 *pbuf);
+#endif
 extern void rtw_join_timeout_handler(RTW_TIMER_HDL_ARGS);
 extern void _rtw_scan_timeout_handler(RTW_TIMER_HDL_ARGS);
 
@@ -955,7 +1038,10 @@ extern void rtw_get_encrypt_decrypt_from_registrypriv(_adapter *adapter);
 extern void _rtw_join_timeout_handler(_adapter *adapter);
 extern void rtw_scan_timeout_handler(_adapter *adapter);
 
+extern void _dynamic_check_timer_handlder(void *FunctionContext);
 extern void rtw_dynamic_check_timer_handlder(_adapter *adapter);
+extern void rtw_iface_dynamic_check_timer_handlder(_adapter *adapter);
+
 #ifdef CONFIG_SET_SCAN_DENY_TIMER
 bool rtw_is_scan_deny(_adapter *adapter);
 void rtw_clear_scan_deny(_adapter *adapter);

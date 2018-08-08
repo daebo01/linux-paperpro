@@ -483,4 +483,10 @@ halmac_mdio_write_88xx(
 	IN u8 speed
 );
 
+VOID
+halmac_config_ampdu_88xx(
+	IN PHALMAC_ADAPTER pHalmac_adapter,
+	IN PHALMAC_AMPDU_CONFIG pAmpdu_config
+);
+
 #endif /* _HALMAC_FUNC_88XX_H_ */

@@ -74,11 +74,6 @@ halmac_cfg_rx_aggregation_88xx(
 );
 
 HALMAC_RET_STATUS
-halmac_init_protocol_cfg_88xx(
-	IN PHALMAC_ADAPTER pHalmac_adapter
-);
-
-HALMAC_RET_STATUS
 halmac_init_edca_cfg_88xx(
 	IN PHALMAC_ADAPTER pHalmac_adapter
 );
@@ -572,6 +567,21 @@ halmac_dl_drv_rsvd_page_88xx(
 	IN u8 pg_offset,
 	IN u8 *pHalmac_buf,
 	IN u32 halmac_size
+);
+
+HALMAC_RET_STATUS
+halmac_cfg_csi_rate_88xx(
+	IN PHALMAC_ADAPTER pHalmac_adapter,
+	IN u8 rssi,
+	IN u8 current_rate,
+	IN u8 fixrate_en,
+	OUT u8 *new_rate
+);
+
+HALMAC_RET_STATUS
+halmac_sdio_cmd53_4byte_88xx(
+	IN PHALMAC_ADAPTER pHalmac_adapter,
+	IN u8 enable
 );
 
 #endif/* _HALMAC_API_H_ */

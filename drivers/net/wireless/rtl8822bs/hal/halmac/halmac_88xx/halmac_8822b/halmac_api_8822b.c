@@ -36,6 +36,7 @@ halmac_mount_api_8822b(
 
 #if HALMAC_8822B_SUPPORT
 	pHalmac_api->halmac_init_trx_cfg = halmac_init_trx_cfg_8822b;
+	pHalmac_api->halmac_init_protocol_cfg = halmac_init_protocol_cfg_8822b;
 	pHalmac_api->halmac_init_h2c = halmac_init_h2c_8822b;
 
 	if (HALMAC_INTERFACE_SDIO == pHalmac_adapter->halmac_interface) {
@@ -109,6 +110,8 @@ halmac_init_trx_cfg_8822b(
 	HALMAC_REG_WRITE_32(pHalmac_adapter, REG_H2CQ_CSR, BIT(31));
 
 	status = halmac_priority_queue_config_8822b(pHalmac_adapter, halmac_trx_mode);
+	if (HALMAC_RX_FIFO_EXPANDING_MODE_DISABLE != pHalmac_adapter->txff_allocation.rx_fifo_expanding_mode)
+		HALMAC_REG_WRITE_8(pHalmac_adapter, REG_RX_DRVINFO_SZ, HALMAC_RX_DESC_DUMMY_SIZE_MAX_8822B >> 3);
 
 	if (HALMAC_RET_SUCCESS != status) {
 		PLATFORM_MSG_PRINT(pDriver_adapter, HALMAC_MSG_INIT, HALMAC_DBG_TRACE, "halmac_txdma_queue_mapping fail!\n");
@@ -149,6 +152,53 @@ halmac_init_trx_cfg_8822b(
 	}
 
 	PLATFORM_MSG_PRINT(pDriver_adapter, HALMAC_MSG_INIT, HALMAC_DBG_TRACE, "halmac_init_trx_cfg <==========\n");
+
+	return HALMAC_RET_SUCCESS;
+}
+
+/**
+ * halmac_init_protocol_cfg_8822b() - config protocol related register
+ * @pHalmac_adapter
+ * Author : KaiYuan Chang/Ivan Lin
+ * Return : HALMAC_RET_STATUS
+ */
+HALMAC_RET_STATUS
+halmac_init_protocol_cfg_8822b(
+	IN PHALMAC_ADAPTER pHalmac_adapter
+)
+{
+	u32 value32;
+	VOID *pDriver_adapter = NULL;
+	PHALMAC_API pHalmac_api;
+
+	if (HALMAC_RET_SUCCESS != halmac_adapter_validate(pHalmac_adapter))
+		return HALMAC_RET_ADAPTER_INVALID;
+
+	if (HALMAC_RET_SUCCESS != halmac_api_validate(pHalmac_adapter))
+		return HALMAC_RET_API_INVALID;
+
+	halmac_api_record_id_88xx(pHalmac_adapter, HALMAC_API_INIT_PROTOCOL_CFG);
+
+	pDriver_adapter = pHalmac_adapter->pDriver_adapter;
+	pHalmac_api = (PHALMAC_API)pHalmac_adapter->pHalmac_api;
+
+	PLATFORM_MSG_PRINT(pDriver_adapter, HALMAC_MSG_INIT, HALMAC_DBG_TRACE, "[TRACE]halmac_init_protocol_cfg_8822b ==========>\n");
+
+	HALMAC_REG_WRITE_8(pHalmac_adapter, REG_AMPDU_MAX_TIME_V1, HALMAC_AMPDU_MAX_TIME_8822B);
+	HALMAC_REG_WRITE_8(pHalmac_adapter, REG_TX_HANG_CTRL, BIT_EN_EOF_V1);
+
+	value32 = HALMAC_PROT_RTS_LEN_TH_8822B | (HALMAC_PROT_RTS_TX_TIME_TH_8822B << 8) |
+					(HALMAC_PROT_MAX_AGG_PKT_LIMIT_8822B << 16) | (HALMAC_PROT_RTS_MAX_AGG_PKT_LIMIT_8822B << 24);
+	HALMAC_REG_WRITE_32(pHalmac_adapter, REG_PROT_MODE_CTRL, value32);
+
+	HALMAC_REG_WRITE_16(pHalmac_adapter, REG_BAR_MODE_CTRL + 2, HALMAC_BAR_RETRY_LIMIT_8822B | HALMAC_RA_TRY_RATE_AGG_LIMIT_8822B << 8);
+
+	HALMAC_REG_WRITE_8(pHalmac_adapter, REG_FAST_EDCA_VOVI_SETTING, HALMAC_FAST_EDCA_VO_TH_8822B);
+	HALMAC_REG_WRITE_8(pHalmac_adapter, REG_FAST_EDCA_VOVI_SETTING + 2, HALMAC_FAST_EDCA_VI_TH_8822B);
+	HALMAC_REG_WRITE_8(pHalmac_adapter, REG_FAST_EDCA_BEBK_SETTING, HALMAC_FAST_EDCA_BE_TH_8822B);
+	HALMAC_REG_WRITE_8(pHalmac_adapter, REG_FAST_EDCA_BEBK_SETTING + 2, HALMAC_FAST_EDCA_BK_TH_8822B);
+
+	PLATFORM_MSG_PRINT(pDriver_adapter, HALMAC_MSG_INIT, HALMAC_DBG_TRACE, "[TRACE]halmac_init_protocol_cfg_8822b <==========\n");
 
 	return HALMAC_RET_SUCCESS;
 }

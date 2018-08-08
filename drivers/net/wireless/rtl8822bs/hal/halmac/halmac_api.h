@@ -1,14 +1,15 @@
 #ifndef _HALMAC_API_H_
 #define _HALMAC_API_H_
 
-#define HALMAC_SVN_VER  "13013M"
+#define HALMAC_SVN_VER  "13348M"
 
 /* major version, ver_1 for async_api */
 #define HALMAC_MAJOR_VER        0x0001
 /* For halmac_api num change or prototype change, increment prototype version */
 #define HALMAC_PROTOTYPE_VER    0x0003
 /* else increment minor version */
-#define HALMAC_MINOR_VER        0x0000
+#define HALMAC_MINOR_VER        0x0002
+#define HALMAC_PATCH_VER        0x0005		/* patch version */
 
 #include "halmac_2_platform.h"
 #include "halmac_hw_cfg.h"

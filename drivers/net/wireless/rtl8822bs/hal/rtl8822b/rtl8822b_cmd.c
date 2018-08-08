@@ -42,7 +42,6 @@ s32 rtl8822b_fillh2ccmd(PADAPTER adapter, u8 id, u32 buf_len, u8 *pbuf)
 	u8 *msg_p;
 	u32 msg_size, i, n;
 #endif /* CONFIG_RTW_DEBUG */
-	int err;
 	s32 ret = _FAIL;
 
 
@@ -65,16 +64,14 @@ s32 rtl8822b_fillh2ccmd(PADAPTER adapter, u8 id, u32 buf_len, u8 *pbuf)
 		if (msg_size == 0)
 			break;
 	}
-	RTW_INFO(FUNC_ADPT_FMT ": id=0x%02x buf=%s\n",
+	RTW_DBG(FUNC_ADPT_FMT ": id=0x%02x buf=%s\n",
 		 FUNC_ADPT_ARG(adapter), id, msg);
 #endif /* CONFIG_RTW_DEBUG */
 
 	h2c[0] = id;
 	_rtw_memcpy(h2c + 1, pbuf, buf_len);
 
-	err = rtw_halmac_send_h2c(adapter_to_dvobj(adapter), h2c);
-	if (!err)
-		ret = _SUCCESS;
+	ret = rtw_halmac_send_h2c(adapter_to_dvobj(adapter), h2c);
 
 exit:
 
@@ -134,7 +131,7 @@ static void rtl8822b_set_FwAoacRsvdPage_cmd(PADAPTER adapter, PRSVDPAGE_LOC rsvd
 		rtw_halmac_send_h2c(adapter_to_dvobj(adapter), h2c);
 	} else {
 #ifdef CONFIG_PNO_SUPPORT
-		if (!pwrpriv->pno_in_resume) {
+		if (!pwrpriv->wowlan_in_resume) {
 			RTW_INFO("%s: NLO_INFO=%d\n", __FUNCTION__, rsvdpageloc->LocPNOInfo);
 			AOAC_RSVD_PAGE3_SET_CMD_ID(h2c, CMD_ID_AOAC_RSVD_PAGE3);
 			AOAC_RSVD_PAGE3_SET_CLASS(h2c, CLASS_AOAC_RSVD_PAGE3);
@@ -235,12 +232,12 @@ static u8 get_ra_ldpc(struct sta_info *psta)
 			en_ldpc = 0;
 		else {
 #ifdef CONFIG_80211AC_VHT
-			if (IsSupportedVHT(psta->wireless_mode)) {
+			if (is_supported_vht(psta->wireless_mode)) {
 				if (TEST_FLAG(psta->vhtpriv.ldpc_cap, LDPC_VHT_CAP_TX))
 					en_ldpc = 1;
 				else
 					en_ldpc = 0;
-			} else if (IsSupportedHT(psta->wireless_mode)) {
+			} else if (is_supported_ht(psta->wireless_mode)) {
 				if (TEST_FLAG(psta->htpriv.ldpc_cap, LDPC_HT_CAP_TX))
 					en_ldpc = 1;
 				else
@@ -311,9 +308,9 @@ void rtl8822b_set_FwMacIdConfig_cmd(PADAPTER adapter, u64 mask, u8 *arg, u8 bw)
 		MACID_CFG_SET_DISPT(h2c, 1);
 		RTW_INFO("%s: Disable PWT by driver\n", __FUNCTION__);
 	} else {
-		PDM_ODM_T pDM_OutSrc = &hal->odmpriv;
+		struct PHY_DM_STRUCT *p_dm_out_src = &hal->odmpriv;
 
-		if (pDM_OutSrc->bDisablePowerTraining) {
+		if (p_dm_out_src->is_disable_power_training) {
 			MACID_CFG_SET_DISPT(h2c, 1);
 			RTW_INFO("%s: Disable PWT by DM\n", __FUNCTION__);
 		}
@@ -391,11 +388,13 @@ void rtl8822b_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode)
 
 
 	if (pwrpriv->dtim > 0)
-		RTW_INFO(FUNC_ADPT_FMT ": FW LPS mode = %d, SmartPS=%d, dtim=%d\n",
-			FUNC_ADPT_ARG(adapter), psmode, pwrpriv->smart_ps, pwrpriv->dtim);
+		RTW_INFO(FUNC_ADPT_FMT ": FW LPS mode = %d, SmartPS=%d, dtim=%d, HW port id=%d\n",
+			FUNC_ADPT_ARG(adapter), psmode, pwrpriv->smart_ps, pwrpriv->dtim,
+			psmode == PS_MODE_ACTIVE ? pwrpriv->current_lps_hw_port_id:get_hw_port(adapter));
 	else
-		RTW_INFO(FUNC_ADPT_FMT ": FW LPS mode = %d, SmartPS=%d\n",
-			 FUNC_ADPT_ARG(adapter), psmode, pwrpriv->smart_ps);
+		RTW_INFO(FUNC_ADPT_FMT ": FW LPS mode = %d, SmartPS=%d, HW port id=%d\n",
+			 FUNC_ADPT_ARG(adapter), psmode, pwrpriv->smart_ps,
+			 psmode == PS_MODE_ACTIVE ? pwrpriv->current_lps_hw_port_id:get_hw_port(adapter));
 
 	if (psmode == PS_MODE_MIN) {
 		mode = 1;
@@ -477,7 +476,14 @@ void rtl8822b_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode)
 	SET_PWR_MODE_SET_AWAKE_INTERVAL(h2c, awake_intvl);
 	SET_PWR_MODE_SET_B_ALL_QUEUE_UAPSD(h2c, adapter->registrypriv.uapsd_enable);
 	SET_PWR_MODE_SET_PWR_STATE(h2c, PowerState);
-	SET_PWR_MODE_SET_PORT_ID(h2c, get_hw_port(adapter));
+	if (psmode == PS_MODE_ACTIVE) {
+		/* Leave LPS, set the same HW port ID */
+		SET_PWR_MODE_SET_PORT_ID(h2c, pwrpriv->current_lps_hw_port_id);
+	} else {
+		/* Enter LPS, record HW port ID */
+		SET_PWR_MODE_SET_PORT_ID(h2c, get_hw_port(adapter));
+		pwrpriv->current_lps_hw_port_id = get_hw_port(adapter);
+	}
 
 	if (byte5 & BIT(0))
 		SET_PWR_MODE_SET_LOW_POWER_RX_BCN(h2c, 1);
@@ -572,7 +578,7 @@ static void ConstructBeacon(PADAPTER adapter, u8 *pframe, u32 *pLength)
 	_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(cur_network), ETH_ALEN);
 
 	SetSeqNum(pwlanhdr, 0);
-	SetFrameSubType(pframe, WIFI_BEACON);
+	set_frame_sub_type(pframe, WIFI_BEACON);
 
 	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);
 	pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
@@ -653,10 +659,10 @@ static void ConstructPSPoll(PADAPTER adapter, u8 *pframe, u32 *pLength)
 	fctrl = &(pwlanhdr->frame_ctl);
 	*(fctrl) = 0;
 	SetPwrMgt(fctrl);
-	SetFrameSubType(pframe, WIFI_PSPOLL);
+	set_frame_sub_type(pframe, WIFI_PSPOLL);
 
 	/* AID. */
-	SetDuration(pframe, (pmlmeinfo->aid | 0xc000));
+	set_duration(pframe, (pmlmeinfo->aid | 0xc000));
 
 	/* BSSID. */
 	_rtw_memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
@@ -719,7 +725,7 @@ static void ConstructNullFunctionData(
 	if (bQoS == _TRUE) {
 		struct rtw_ieee80211_hdr_3addr_qos *pwlanqoshdr;
 
-		SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
+		set_frame_sub_type(pframe, WIFI_QOS_DATA_NULL);
 
 		pwlanqoshdr = (struct rtw_ieee80211_hdr_3addr_qos *)pframe;
 		SetPriority(&pwlanqoshdr->qc, AC);
@@ -727,7 +733,7 @@ static void ConstructNullFunctionData(
 
 		pktlen = sizeof(struct rtw_ieee80211_hdr_3addr_qos);
 	} else {
-		SetFrameSubType(pframe, WIFI_DATA_NULL);
+		set_frame_sub_type(pframe, WIFI_DATA_NULL);
 
 		pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
 	}
@@ -771,7 +777,7 @@ static void ConstructProbeRsp(PADAPTER adapter, u8 *pframe, u32 *pLength, u8 *St
 	RTW_INFO("%s FW IP Addr" IP_FMT "\n", __FUNCTION__, IP_ARG(StaAddr));
 
 	SetSeqNum(pwlanhdr, 0);
-	SetFrameSubType(fctrl, WIFI_PROBERSP);
+	set_frame_sub_type(fctrl, WIFI_PROBERSP);
 
 	pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
 	pframe += pktlen;
@@ -930,13 +936,13 @@ static void ConstructBtNullFunctionData(
 	_rtw_memcpy(pwlanhdr->addr2, adapter_mac_addr(adapter), ETH_ALEN);
 	_rtw_memcpy(pwlanhdr->addr3, adapter_mac_addr(adapter), ETH_ALEN);
 
-	SetDuration(pwlanhdr, 0);
+	set_duration(pwlanhdr, 0);
 	SetSeqNum(pwlanhdr, 0);
 
 	if (bQoS == _TRUE) {
 		struct rtw_ieee80211_hdr_3addr_qos *pwlanqoshdr;
 
-		SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
+		set_frame_sub_type(pframe, WIFI_QOS_DATA_NULL);
 
 		pwlanqoshdr = (struct rtw_ieee80211_hdr_3addr_qos *)pframe;
 		SetPriority(&pwlanqoshdr->qc, AC);
@@ -944,7 +950,7 @@ static void ConstructBtNullFunctionData(
 
 		pktlen = sizeof(struct rtw_ieee80211_hdr_3addr_qos);
 	} else {
-		SetFrameSubType(pframe, WIFI_DATA_NULL);
+		set_frame_sub_type(pframe, WIFI_DATA_NULL);
 
 		pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
 	}
@@ -1065,7 +1071,7 @@ void rtl8822b_download_BTCoex_AP_mode_rsvd_page(PADAPTER adapter)
 	u8 bcn_valid = _FALSE;
 	u8 DLBcnCount = 0;
 	u32 poll = 0;
-	u8 val8;
+	u8 val8, RegFwHwTxQCtrl;
 	u8 restore[2];
 
 
@@ -1103,12 +1109,13 @@ void rtl8822b_download_BTCoex_AP_mode_rsvd_page(PADAPTER adapter)
 	rtw_write8(adapter, REG_BCN_CTRL_8822B, val8);
 
 	/* Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is not a real beacon frame. */
-	if (hal->RegFwHwTxQCtrl & BIT(6))
+	RegFwHwTxQCtrl = rtw_read8(adapter, REG_FWHW_TXQ_CTRL_8822B + 2);
+	if (RegFwHwTxQCtrl & BIT(6))
 		bRecover = _TRUE;
 
 	/* To tell Hw the packet is not a real beacon frame. */
-	hal->RegFwHwTxQCtrl &= ~BIT(6);
-	rtw_write8(adapter, REG_FWHW_TXQ_CTRL_8822B + 2, hal->RegFwHwTxQCtrl);
+	RegFwHwTxQCtrl &= ~BIT(6);
+	rtw_write8(adapter, REG_FWHW_TXQ_CTRL_8822B + 2, RegFwHwTxQCtrl);
 
 	/* Clear beacon valid check bit. */
 	rtw_hal_set_hwreg(adapter, HW_VAR_BCN_VALID, NULL);
@@ -1150,8 +1157,8 @@ void rtl8822b_download_BTCoex_AP_mode_rsvd_page(PADAPTER adapter)
 	 * the beacon cannot be sent by HW.
 	 */
 	if (bRecover) {
-		hal->RegFwHwTxQCtrl |= BIT(6);
-		rtw_write8(adapter, REG_FWHW_TXQ_CTRL_8822B + 2, hal->RegFwHwTxQCtrl);
+		RegFwHwTxQCtrl |= BIT(6);
+		rtw_write8(adapter, REG_FWHW_TXQ_CTRL_8822B + 2, RegFwHwTxQCtrl);
 	}
 
 	rtw_write8(adapter, REG_BCN_CTRL_8822B, restore[1]);
@@ -1166,7 +1173,7 @@ void rtl8822b_download_BTCoex_AP_mode_rsvd_page(PADAPTER adapter)
 }
 #endif /* CONFIG_BT_COEXIST */
 
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 void rtl8822b_set_p2p_ps_offload_cmd(PADAPTER adapter, u8 p2p_ps_state)
 {
 	PHAL_DATA_TYPE hal = GET_HAL_DATA(adapter);
@@ -1251,7 +1258,7 @@ void rtl8822b_set_p2p_ps_offload_cmd(PADAPTER adapter, u8 p2p_ps_state)
 
 	_rtw_memcpy(&hal->p2p_ps_offload, &h2c[1], sizeof(hal->p2p_ps_offload));
 }
-#endif /* CONFIG_P2P */
+#endif /* CONFIG_P2P_PS */
 
 #ifdef CONFIG_TSF_RESET_OFFLOAD
 /*
@@ -1288,20 +1295,20 @@ void rtl8822b_fw_update_beacon_cmd(PADAPTER adapter)
 static void c2h_ccx_rpt(PADAPTER adapter, u8 *pdata)
 {
 #ifdef CONFIG_XMIT_ACK
-	u8 seq_no, retry_over, life_time_over;
+#define C2H_CCX_RPT_GET_TX_STATE(__pC2H)    LE_BITS_TO_4BYTE(__pC2H + 0X04, 30, 2)
+	u8 tx_state = _FALSE;
 
+	tx_state = C2H_CCX_RPT_GET_TX_STATE(pdata);
 
-	seq_no = C2H_CCX_RPT_GET_SEQ(pdata);
-	retry_over = C2H_CCX_RPT_GET_RETRY_OVER(pdata);
-	life_time_over = C2H_CCX_RPT_GET_LIFE_TIME_OVER(pdata);
-
-	if (retry_over || life_time_over)
-		rtw_ack_tx_done(&adapter->xmitpriv, RTW_SCTX_DONE_CCX_PKT_FAIL);
-	else
+	/* 0 means success, 1 means retry drop */
+	if (tx_state == 0)
 		rtw_ack_tx_done(&adapter->xmitpriv, RTW_SCTX_DONE_SUCCESS);
+	else
+		rtw_ack_tx_done(&adapter->xmitpriv, RTW_SCTX_DONE_CCX_PKT_FAIL);
 #endif /* CONFIG_XMIT_ACK */
 }
 
+#define C2H_SUB_CMD_ID_CCX_RPT	0x0F
 /**
  * c2h = RXDESC + c2h packet
  * size = RXDESC_SIZE + c2h packet size
@@ -1312,7 +1319,7 @@ static void process_c2h_event(PADAPTER adapter, u8 *c2h, u32 size)
 	PHAL_DATA_TYPE hal;
 	struct mlme_ext_priv *pmlmeext;
 	struct mlme_ext_info *pmlmeinfo;
-	PDM_ODM_T pDM_Odm;
+	struct PHY_DM_STRUCT *p_dm_odm;
 	u8 id, seq;
 	u8 c2h_len, c2h_payload_len;
 	u8 *pc2h_data, *pc2h_payload;
@@ -1330,7 +1337,7 @@ static void process_c2h_event(PADAPTER adapter, u8 *c2h, u32 size)
 	}
 
 	hal = GET_HAL_DATA(adapter);
-	pDM_Odm = &hal->odmpriv;
+	p_dm_odm = &hal->odmpriv;
 	pmlmeext = &adapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
 
@@ -1346,14 +1353,28 @@ static void process_c2h_event(PADAPTER adapter, u8 *c2h, u32 size)
 	c2h_payload_len = c2h_len - 2;
 
 	switch (id) {
+#ifdef CONFIG_BEAMFORMING
+	case CMD_ID_C2H_SND_TXBF:
+		RTW_INFO("%s: [CMD_ID_C2H_SND_TXBF] len=%d\n", __FUNCTION__, c2h_payload_len);
+		rtw_bf_c2h_handler(adapter, id, pc2h_data, c2h_len);
+		break;
+#endif /* CONFIG_BEAMFORMING */
+
 	case CMD_ID_C2H_CCX_RPT:
 		c2h_ccx_rpt(adapter, pc2h_data);
 		break;
-	/* FW offload C2H is 0xFF cmd according to halmac function - halmac_parse_c2h_packet */
-	case 0xFF:
+
+	case C2H_EXTEND:
+		if (C2H_HDR_GET_C2H_SUB_CMD_ID(pc2h_data) == C2H_SUB_CMD_ID_CCX_RPT) {
+			/* Shift C2H HDR 4 bytes */
+			c2h_ccx_rpt(adapter, pc2h_data + 4);
+			break;
+		}
+
 		/* indicate c2h pkt + rx desc to halmac */
 		rtw_halmac_c2h_handle(adapter_to_dvobj(adapter), c2h, size);
 		break;
+
 	/* others for c2h common code */
 	default:
 		c2h_handler(adapter, id, seq, c2h_payload_len, pc2h_payload);
@@ -1382,8 +1403,9 @@ void rtl8822b_c2h_handler(PADAPTER adapter, u8 *pbuf, u16 length)
  */
 void rtl8822b_c2h_handler_no_io(PADAPTER adapter, u8 *pbuf, u16 length)
 {
-	u8 id, seq, c2h_size;
+	u8 id, seq;
 	u8 *pc2h_content;
+	u8 res;
 
 
 	if ((length == 0) || (!pbuf))
@@ -1398,14 +1420,22 @@ void rtl8822b_c2h_handler_no_io(PADAPTER adapter, u8 *pbuf, u16 length)
 		 __FUNCTION__, id, seq, length);
 
 	switch (id) {
-	/* no I/O, process directly */
+	case CMD_ID_C2H_SND_TXBF:
 	case CMD_ID_C2H_CCX_RPT:
+	case C2H_BT_MP_INFO:
+	case C2H_FW_CHNL_SWITCH_COMPLETE:
+	case C2H_IQK_FINISH:
+	case C2H_MCC:
+	case C2H_BCN_EARLY_RPT:
+	case C2H_EXTEND:
+		/* no I/O, process directly */
 		process_c2h_event(adapter, pbuf, length);
 		break;
 
-	/* need I/O, run in command thread */
 	default:
-		if (rtw_c2h_packet_wk_cmd(adapter, pbuf, length) == _FAIL)
+		/* Others may need I/O, run in command thread */
+		res = rtw_c2h_packet_wk_cmd(adapter, pbuf, length);
+		if (res == _FAIL)
 			RTW_ERR("%s: C2H(%d) enqueue FAIL!\n", __FUNCTION__, id);
 		break;
 	}

@@ -27,12 +27,12 @@
 void rtw_odm_init_ic_type(_adapter *adapter)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &hal_data->odmpriv;
+	struct PHY_DM_STRUCT *odm = &hal_data->odmpriv;
 	u4Byte ic_type = chip_type_to_odm_ic_type(rtw_get_chip_type(adapter));
 
 	rtw_warn_on(!ic_type);
 
-	ODM_CmnInfoInit(odm, ODM_CMNINFO_IC_TYPE, ic_type);
+	odm_cmn_info_init(odm, ODM_CMNINFO_IC_TYPE, ic_type);
 }
 
 inline void rtw_odm_set_force_igi_lb(_adapter *adapter, u8 lb)
@@ -62,7 +62,7 @@ void rtw_odm_adaptivity_en_msg(void *sel, _adapter *adapter)
 	struct registry_priv *regsty = &adapter->registrypriv;
 	struct mlme_priv *mlme = &adapter->mlmepriv;
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &hal_data->odmpriv;
+	struct PHY_DM_STRUCT *odm = &hal_data->odmpriv;
 
 	RTW_PRINT_SEL(sel, "RTW_ADAPTIVITY_EN_");
 
@@ -139,50 +139,50 @@ bool rtw_odm_adaptivity_needed(_adapter *adapter)
 void rtw_odm_adaptivity_parm_msg(void *sel, _adapter *adapter)
 {
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &pHalData->odmpriv;
+	struct PHY_DM_STRUCT *odm = &pHalData->odmpriv;
 
 	rtw_odm_adaptivity_config_msg(sel, adapter);
 
 	RTW_PRINT_SEL(sel, "%10s %16s %16s %22s %12s\n"
-		, "TH_L2H_ini", "TH_EDCCA_HL_diff", "TH_L2H_ini_mode2", "TH_EDCCA_HL_diff_mode2", "EDCCA_enable");
+		, "th_l2h_ini", "th_edcca_hl_diff", "th_l2h_ini_mode2", "th_edcca_hl_diff_mode2", "edcca_enable");
 	RTW_PRINT_SEL(sel, "0x%-8x %-16d 0x%-14x %-22d %-12d\n"
-		, (u8)odm->TH_L2H_ini
-		, odm->TH_EDCCA_HL_diff
-		, (u8)odm->TH_L2H_ini_mode2
-		, odm->TH_EDCCA_HL_diff_mode2
-		, odm->EDCCA_enable
+		, (u8)odm->th_l2h_ini
+		, odm->th_edcca_hl_diff
+		, (u8)odm->th_l2h_ini_mode2
+		, odm->th_edcca_hl_diff_mode2
+		, odm->edcca_enable
 	);
 
 	RTW_PRINT_SEL(sel, "%15s %9s\n", "AdapEnableState", "Adap_Flag");
 	RTW_PRINT_SEL(sel, "%-15x %-9x\n"
-		, odm->Adaptivity_enable
+		, odm->adaptivity_enable
 		, odm->adaptivity_flag
 	);
 }
 
-void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 TH_L2H_ini, s8 TH_EDCCA_HL_diff, s8 TH_L2H_ini_mode2, s8 TH_EDCCA_HL_diff_mode2, u8 EDCCA_enable)
+void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 th_l2h_ini, s8 th_edcca_hl_diff, s8 th_l2h_ini_mode2, s8 th_edcca_hl_diff_mode2, u8 edcca_enable)
 {
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &pHalData->odmpriv;
+	struct PHY_DM_STRUCT *odm = &pHalData->odmpriv;
 
-	odm->TH_L2H_ini = TH_L2H_ini;
-	odm->TH_EDCCA_HL_diff = TH_EDCCA_HL_diff;
-	odm->TH_L2H_ini_mode2 = TH_L2H_ini_mode2;
-	odm->TH_EDCCA_HL_diff_mode2 = TH_EDCCA_HL_diff_mode2;
-	odm->EDCCA_enable = EDCCA_enable;
+	odm->th_l2h_ini = th_l2h_ini;
+	odm->th_edcca_hl_diff = th_edcca_hl_diff;
+	odm->th_l2h_ini_mode2 = th_l2h_ini_mode2;
+	odm->th_edcca_hl_diff_mode2 = th_edcca_hl_diff_mode2;
+	odm->edcca_enable = edcca_enable;
 }
 
 void rtw_odm_get_perpkt_rssi(void *sel, _adapter *adapter)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &(hal_data->odmpriv);
+	struct PHY_DM_STRUCT *odm = &(hal_data->odmpriv);
 
-	RTW_PRINT_SEL(sel, "RxRate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n",
-		      HDATA_RATE(odm->RxRate), odm->RSSI_A, odm->RSSI_B);
+	RTW_PRINT_SEL(sel, "rx_rate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n",
+		      HDATA_RATE(odm->rx_rate), odm->RSSI_A, odm->RSSI_B);
 }
 
 
-void rtw_odm_acquirespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type)
+void rtw_odm_acquirespinlock(_adapter *adapter,	enum rt_spinlock_type type)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(adapter);
 	_irqL irqL;
@@ -195,7 +195,7 @@ void rtw_odm_acquirespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type)
 	}
 }
 
-void rtw_odm_releasespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type)
+void rtw_odm_releasespinlock(_adapter *adapter,	enum rt_spinlock_type type)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(adapter);
 	_irqL irqL;
@@ -208,15 +208,28 @@ void rtw_odm_releasespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type)
 	}
 }
 
-#ifdef CONFIG_DFS_MASTER
 inline u8 rtw_odm_get_dfs_domain(_adapter *adapter)
 {
+#ifdef CONFIG_DFS_MASTER
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	PDM_ODM_T pDM_Odm = &(hal_data->odmpriv);
+	struct PHY_DM_STRUCT *pDM_Odm = &(hal_data->odmpriv);
 
-	return pDM_Odm->DFS_RegionDomain;
+	return pDM_Odm->dfs_region_domain;
+#else
+	return PHYDM_DFS_DOMAIN_UNKNOWN;
+#endif
 }
 
+inline u8 rtw_odm_dfs_domain_unknown(_adapter *adapter)
+{
+#ifdef CONFIG_DFS_MASTER
+	return rtw_odm_get_dfs_domain(adapter) == PHYDM_DFS_DOMAIN_UNKNOWN;
+#else
+	return 1;
+#endif
+}
+
+#ifdef CONFIG_DFS_MASTER
 inline VOID rtw_odm_radar_detect_reset(_adapter *adapter)
 {
 	phydm_radar_detect_reset(GET_ODM(adapter));

@@ -28,8 +28,11 @@
 
 u32 rtl8822bs_init(PADAPTER adapter)
 {
-	u8 ok;
+	u8 ok = _TRUE;
+	PHAL_DATA_TYPE hal;
 
+
+	hal = GET_HAL_DATA(adapter);
 
 	ok = rtl8822b_hal_init(adapter);
 	if (_FALSE == ok)
@@ -42,13 +45,17 @@ u32 rtl8822bs_init(PADAPTER adapter)
 
 	rtl8822b_phy_init_haldm(adapter);
 #ifdef CONFIG_BEAMFORMING
-	rtl8822b_phy_init_beamforming(adapter);
-#endif /* CONFIG_BEAMFORMING */
+	rtl8822b_phy_bf_init(adapter);
+#endif
 
 #ifdef CONFIG_BT_COEXIST
-	/* Init BT-Coex hardware config */
-	if (_TRUE == GET_HAL_DATA(adapter)->EEPROMBluetoothCoexist)
+	/* Init BT hw config. */
+	if (hal->EEPROMBluetoothCoexist == _TRUE)
 		rtw_btcoex_HAL_Initialize(adapter, _FALSE);
+	else
+		rtw_btcoex_wifionly_hw_config(adapter);
+#else /* CONFIG_BT_COEXIST */
+	rtw_btcoex_wifionly_hw_config(adapter);
 #endif /* CONFIG_BT_COEXIST */
 
 	rtl8822b_init_misc(adapter);

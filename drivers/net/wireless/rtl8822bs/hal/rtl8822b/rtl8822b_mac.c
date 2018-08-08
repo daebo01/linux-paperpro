@@ -166,26 +166,22 @@ inline u8 rtl8822b_rx_tsf_addr_filter_config(PADAPTER p, u8 config)
  */
 s32 rtl8822b_fw_dl(PADAPTER adapter, u8 wowlan)
 {
-	#define FW_PATH_LEN 256
-
 	struct dvobj_priv *d = adapter_to_dvobj(adapter);
 	HAL_DATA_TYPE *hal = GET_HAL_DATA(adapter);
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(adapter);
 	int err;
 	u8 fw_bin = _TRUE;
-	u8 fw_path[FW_PATH_LEN];
-
 
 #ifdef CONFIG_FILE_FWIMG
 #ifdef CONFIG_WOWLAN
 	if (wowlan)
-		rtw_merge_string(fw_path, FW_PATH_LEN, REALTEK_CONFIG_PATH, RTL8822B_FW_WW_IMG);
+		rtw_get_phy_file_path(adapter, MAC_FILE_FW_WW_IMG);
 	else
 #endif /* CONFIG_WOWLAN */
-		rtw_merge_string(fw_path, FW_PATH_LEN, REALTEK_CONFIG_PATH, RTL8822B_FW_IMG);
+		rtw_get_phy_file_path(adapter, MAC_FILE_FW_NIC);
 
-	if (rtw_is_file_readable(fw_path) == _TRUE) {
-		RTW_INFO("%s acquire FW from file:%s\n", __FUNCTION__, fw_path);
+	if (rtw_is_file_readable(rtw_phy_para_file_path) == _TRUE) {
+		RTW_INFO("%s acquire FW from file:%s\n", __FUNCTION__, rtw_phy_para_file_path);
 		fw_bin = _TRUE;
 	} else
 #endif /* CONFIG_FILE_FWIMG */
@@ -196,23 +192,24 @@ s32 rtl8822b_fw_dl(PADAPTER adapter, u8 wowlan)
 
 #ifdef CONFIG_FILE_FWIMG
 	if (_TRUE == fw_bin) {
-		err = rtw_halmac_dlfw_from_file(d, fw_path);
+		err = rtw_halmac_dlfw_from_file(d, rtw_phy_para_file_path);
 	} else
 #endif /* CONFIG_FILE_FWIMG */
 	{
 		#ifdef CONFIG_WOWLAN
 		if (_TRUE == wowlan)
-			err = rtw_halmac_dlfw(d, Array_MP_8822B_FW_WoWLAN, ArrayLength_MP_8822B_FW_WoWLAN);
+			err = rtw_halmac_dlfw(d, array_mp_8822b_fw_wowlan, array_length_mp_8822b_fw_wowlan);
 		else
 		#endif /* CONFIG_WOWLAN */
-			err = rtw_halmac_dlfw(d, Array_MP_8822B_FW_NIC, ArrayLength_MP_8822B_FW_NIC);
+			err = rtw_halmac_dlfw(d, array_mp_8822b_fw_nic, array_length_mp_8822b_fw_nic);
 	}
 
 	if (!err) {
 		adapter->bFWReady = _TRUE;
 		hal->fw_ractrl = _TRUE;
 		RTW_INFO("%s Download Firmware from %s success\n", __FUNCTION__, (fw_bin) ? "file" : "array");
-		RTW_INFO("%s FW Version:%d SubVersion:%d\n", (wowlan) ? "WOW" : "NIC", hal->FirmwareVersion, hal->FirmwareSubVersion);
+		RTW_INFO("%s FW Version:%d SubVersion:%d FW size:%d\n", (wowlan) ? "WOW" : "NIC",
+			hal->firmware_version, hal->firmware_sub_version, hal->firmware_size);
 		return _SUCCESS;
 	} else {
 		adapter->bFWReady = _FALSE;

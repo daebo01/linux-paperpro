@@ -23,6 +23,7 @@
 #include <rtw_sdio.h>		/* rtw_sdio_write_cmd53() */
 #include <sdio_ops_linux.h>	/* SDIO_ERR_VAL8 and etc. */
 #include "rtl8822bs.h"		/* rtl8822bs_get_interrupt(), rtl8822bs_clear_interrupt() and etc. */
+#include "../../hal_halmac.h"	/* rtw_halmac_sdio_get_rx_addr() */
 
 
 /*
@@ -68,29 +69,29 @@ static u8 sdio_f0_read8(struct intf_hdl *pintfhdl, u32 addr)
  *	and make sure data transfer will be done in one command.
  *
  * Parameters:
- *	pintfhdl	a pointer of intf_hdl
- *	addr		port ID
- *	cnt		size to read
- *	mem		address to put data
+ *	d		a pointer of dvobj_priv
+ *	addr		not use
+ *	cnt		size to write
+ *	mem		buffer to write
  *
  * Return:
  *	_SUCCESS(1)	Success
  *	_FAIL(0)	Fail
  */
-static s32 _sdio_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *mem)
+u32 rtl8822bs_read_port(struct dvobj_priv *d, u32 cnt, u8 *mem)
 {
-	struct dvobj_priv *d;
-	PHAL_DATA_TYPE phal;
+	struct _ADAPTER *adapter;
+	struct hal_com_data *hal;
 	u32 rxaddr;
 	void *buf;
 	size_t buflen;
 	u32 ret;
 
 
-	d = pintfhdl->pintf_dev;
-	phal = GET_HAL_DATA(pintfhdl->padapter);
+	adapter = dvobj_get_primary_adapter(d);
+	hal = GET_HAL_DATA(adapter);
 
-	rxaddr = rtw_halmac_sdio_get_rx_addr(d, &phal->SdioRxFIFOCnt);
+	rxaddr = rtw_halmac_sdio_get_rx_addr(d, &hal->SdioRxFIFOCnt);
 	buf = mem;
 
 	/* align size to guarantee I/O would be done in one command */
@@ -131,8 +132,9 @@ static u32 sdio_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *mem)
 {
 	struct recv_buf *recvbuf;
 
+
 	recvbuf = (struct recv_buf *)mem;
-	return _sdio_read_port(pintfhdl, addr, cnt, recvbuf->pbuf);
+	return rtl8822bs_read_port(pintfhdl->pintf_dev, cnt, recvbuf->pbuf);
 }
 
 /*
@@ -160,6 +162,11 @@ u32 rtl8822bs_write_port(struct dvobj_priv *d, u32 cnt, u8 *mem)
 	txaddr = rtw_halmac_sdio_get_tx_addr(d, mem, cnt);
 	if (!txaddr)
 		goto exit;
+	/*
+	 * Align size to SDIO IC excpeted,
+	 * and this would be done by calling halmac function later.
+	 */
+	cnt = _RND4(cnt);
 
 	/* align size to guarantee I/O would be done in one command */
 	txsize = sdio_cmd53_align_size(cnt);
@@ -271,23 +278,25 @@ static struct recv_buf *sd_recv_rxfifo(PADAPTER adapter, u32 size)
 	recvpriv = &adapter->recvpriv;
 	recvbuf = rtw_dequeue_recvbuf(&recvpriv->free_recv_buf_queue);
 	if (recvbuf == NULL) {
-		RTW_INFO("%s: <ERR> alloc recvbuf FAIL!\n", __FUNCTION__);
+#ifndef CONFIG_RECV_THREAD_MODE
+		RTW_WARN("%s:alloc recvbuf FAIL!\n", __FUNCTION__);
+#endif /* !CONFIG_RECV_THREAD_MODE */
 		return NULL;
 	}
 
 	/* 2. alloc skb */
 	pkt = rtl8822bs_alloc_recvbuf_skb(recvbuf, bufsz);
 	if (!pkt) {
-		RTW_INFO("%s: <ERR> alloc_skb fail! alloc=%d read=%d\n", __FUNCTION__, bufsz, size);
+		RTW_ERR("%s: alloc_skb fail! alloc=%d read=%d\n", __FUNCTION__, bufsz, size);
 		rtw_enqueue_recvbuf(recvbuf, &recvpriv->free_recv_buf_queue);
 		return NULL;
 	}
 
 	/* 3. read data from rxfifo */
 	rbuf = skb_put(pkt, size);
-	ret = _sdio_read_port(&adapter->iopriv.intf, WLAN_RX0FF_DEVICE_ID, bufsz, rbuf);
+	ret = rtl8822bs_read_port(adapter_to_dvobj(adapter), bufsz, rbuf);
 	if (_FAIL == ret) {
-		RTW_INFO("%s: <ERR> read port FAIL!\n", __FUNCTION__);
+		RTW_ERR("%s: read port FAIL!\n", __FUNCTION__);
 		rtl8822bs_free_recvbuf_skb(recvbuf);
 		rtw_enqueue_recvbuf(recvbuf, &recvpriv->free_recv_buf_queue);
 		return NULL;
@@ -301,6 +310,42 @@ static struct recv_buf *sd_recv_rxfifo(PADAPTER adapter, u32 size)
 	recvbuf->pend = skb_end_pointer(pkt);
 
 	return recvbuf;
+}
+
+static u32 sdio_recv_and_drop(PADAPTER adapter, u32 size)
+{
+	u32 readsz, blksz, bufsz;
+	u8 *rbuf;
+	s32 ret = _SUCCESS;
+
+	/*
+	 * Patch for some SDIO Host 4 bytes issue
+	 * ex. RK3188
+	 */
+	readsz = RND4(size);
+
+	/* round to block size */
+	blksz = adapter_to_dvobj(adapter)->intf_data.block_transfer_len;
+	if (readsz > blksz)
+		bufsz = _RND(readsz, blksz);
+	else
+		bufsz = readsz;
+
+	rbuf = rtw_zmalloc(bufsz);
+	if (NULL == rbuf) {
+		ret = _FAIL;
+		goto _exit;
+	}
+
+	ret = rtl8822bs_read_port(adapter_to_dvobj(adapter), bufsz, rbuf);
+	if (_FAIL == ret)
+		RTW_ERR("%s: read port FAIL!\n", __FUNCTION__);
+
+	if (NULL != rbuf)
+		rtw_mfree(rbuf, bufsz);
+
+_exit:
+	return ret;
 }
 
 void sd_int_dpc(PADAPTER adapter)
@@ -317,8 +362,8 @@ void sd_int_dpc(PADAPTER adapter)
 #ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
 	if (phal->sdio_hisr & BIT_SDIO_AVAL_8822B)
 		_rtw_up_sema(&adapter->xmitpriv.xmit_sema);
-
 #endif /* CONFIG_SDIO_TX_ENABLE_AVAL_INT */
+
 	if (phal->sdio_hisr & BIT_SDIO_CPWM1_8822B) {
 		struct reportpwrstate_parm report;
 
@@ -358,35 +403,49 @@ void sd_int_dpc(PADAPTER adapter)
 
 	if (phal->sdio_hisr & BIT_RX_REQUEST_8822B) {
 		struct recv_buf *precvbuf;
-		int alloc_fail_time = 0;
-		u32 hisr;
+		int rx_fail_time = 0;
+		u32 rx_len;
 
 
+		/* No need to write 1 clear for RX_REQUEST */
 		phal->sdio_hisr ^= BIT_RX_REQUEST_8822B;
+
+		rx_len = phal->SdioRxFIFOSize;
 		do {
-			phal->SdioRxFIFOSize = rtw_read16(adapter, REG_SDIO_RX_REQ_LEN_8822B);
-			if (phal->SdioRxFIFOSize) {
-				precvbuf = sd_recv_rxfifo(adapter, phal->SdioRxFIFOSize);
-				if (precvbuf)
-					rtl8822bs_rxhandler(adapter, precvbuf);
-				else {
-					alloc_fail_time++;
-					RTW_INFO("%s: recv fail!(time=%d)\n", __FUNCTION__, alloc_fail_time);
-					if (alloc_fail_time >= 10)
-						break;
-				}
-				phal->SdioRxFIFOSize = 0;
-			} else
+			if (!rx_len)
 				break;
 
-			hisr = rtl8822bs_get_interrupt(adapter);
-			hisr &= BIT_RX_REQUEST_8822B;
-			if (!hisr)
-				break;
+			precvbuf = sd_recv_rxfifo(adapter, rx_len);
+			if (precvbuf) {
+				rtl8822bs_rxhandler(adapter, precvbuf);
+			} else {
+				rx_fail_time++;
+#ifdef CONFIG_RECV_THREAD_MODE
+				if (rx_fail_time >= 10) {
+					if (_FAIL == sdio_recv_and_drop(adapter, rx_len))
+						break;
+
+					rx_fail_time = 0;
+				} else {
+					rtw_msleep_os(1);
+					continue;
+				}
+#else /* !CONFIG_RECV_THREAD_MODE */
+				RTW_WARN("%s: recv fail!(time=%d)\n", __FUNCTION__, rx_fail_time);
+				if (rx_fail_time >= 10)
+					break;
+#endif /* !CONFIG_RECV_THREAD_MODE */
+			}
+			rx_len = 0;
+#ifdef CONFIG_PLATFORM_ZTE_ZX296716
+			/* clear Host cached interrupt */
+			dw_mci_clear_sdio_irq_status();
+#endif /* CONFIG_PLATFORM_ZTE_ZX296716 */
+			rtl8822bs_get_interrupt(adapter, NULL, &rx_len);
 		} while (1);
 
-		if (alloc_fail_time == 10)
-			RTW_INFO("%s: exit because recv failed more than 10 times!\n", __FUNCTION__);
+		if (rx_fail_time == 10)
+			RTW_ERR("%s: exit because recv failed more than 10 times!\n", __FUNCTION__);
 	}
 }
 
@@ -400,32 +459,30 @@ void sd_int_hdl(PADAPTER adapter)
 
 	phal = GET_HAL_DATA(adapter);
 
-	phal->sdio_hisr = rtl8822bs_get_interrupt(adapter);
+#ifdef CONFIG_RTW_SDIO_OOB_INT
+	rtw_hal_disable_interrupt(adapter);/* disable interrupt -> clear HIMR */
+#endif
+
+	rtl8822bs_get_interrupt(adapter, &phal->sdio_hisr, &phal->SdioRxFIFOSize);
 	if (phal->sdio_hisr & phal->sdio_himr) {
 		phal->sdio_hisr &= phal->sdio_himr;
-
-		rtl8822bs_clear_interrupt(adapter, phal->sdio_hisr);
-
 		sd_int_dpc(adapter);
+		rtl8822bs_clear_interrupt(adapter, phal->sdio_hisr);
 	} else {
 		RTW_INFO("%s: HISR(0x%08x) and HIMR(0x%08x) no match!\n",
 			 __FUNCTION__, phal->sdio_hisr, phal->sdio_himr);
 	}
+
+#ifdef CONFIG_RTW_SDIO_OOB_INT
+	rtw_hal_enable_interrupt(adapter);/* enable interrupt -> set HIMR */
+#endif
+
 }
 
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
 u8 rtw_hal_enable_cpwm2(_adapter *adapter)
 {
-	u32 hisr = 0;
-
-	RTW_PRINT("%s\n", __func__);
-	hisr = rtl8822bs_get_interrupt(adapter);
-	RTW_INFO("read SDIO_REG_HIMR: 0x%08x\n", hisr);
-
-	update_himr(adapter, BIT_SDIO_CPWM2_MSK_8822B);
-
-	hisr = rtl8822bs_get_interrupt(adapter);
-	RTW_INFO("read again SDIO_REG_HIMR: 0x%08x\n", hisr);
+	rtl8822bs_disable_interrupt_but_cpwm2(adapter);
 	return _SUCCESS;
 }
 
@@ -434,21 +491,28 @@ u8 RecvOnePkt(PADAPTER adapter)
 	struct recv_buf *precvbuf;
 	struct dvobj_priv *psddev;
 	PSDIO_DATA psdio_data;
+	PHAL_DATA_TYPE phal;
 	struct sdio_func *func;
 	u8 res = _TRUE;
-	u16 len = 0;
+	u32 len = 0;
 
 	if (adapter == NULL) {
 		RTW_ERR("%s: adapter is NULL!\n", __func__);
 		return _FALSE;
 	}
+
 	psddev = adapter->dvobj;
 	psdio_data = &psddev->intf_data;
 	func = psdio_data->func;
+	phal = GET_HAL_DATA(adapter);
 
-	len = rtw_read16(adapter, REG_SDIO_RX_REQ_LEN_8822B);
+	rtl8822bs_get_interrupt(adapter, &phal->sdio_hisr,
+				&phal->SdioRxFIFOSize);
 
-	RTW_INFO("+%s: size=%d+\n", __func__, len);
+	len = phal->SdioRxFIFOSize;
+
+	RTW_DBG("+%s: hisr: %08x size=%d+\n",
+		 __func__, phal->sdio_hisr, phal->SdioRxFIFOSize);
 
 	if (len) {
 		sdio_claim_host(func);
@@ -459,7 +523,6 @@ u8 RecvOnePkt(PADAPTER adapter)
 			res = _FALSE;
 		sdio_release_host(func);
 	}
-	RTW_INFO("-%s-\n", __func__);
 	return res;
 }
 #endif /* CONFIG_WOWLAN */

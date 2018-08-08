@@ -302,7 +302,7 @@ u8 rtw_set_802_11_bssid(_adapter *padapter, u8 *bssid)
 				goto release_mlme_lock;/* it means driver is in WIFI_ADHOC_MASTER_STATE, we needn't create bss again. */
 		} else {
 
-			rtw_disassoc_cmd(padapter, 0, _TRUE);
+			rtw_disassoc_cmd(padapter, 0, 0);
 
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 				rtw_indicate_disconnect(padapter, 0, _FALSE);
@@ -374,7 +374,7 @@ u8 rtw_set_802_11_ssid(_adapter *padapter, NDIS_802_11_SSID *ssid)
 
 				if (rtw_is_same_ibss(padapter, pnetwork) == _FALSE) {
 					/* if in WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE, create bss or rejoin again */
-					rtw_disassoc_cmd(padapter, 0, _TRUE);
+					rtw_disassoc_cmd(padapter, 0, 0);
 
 					if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 						rtw_indicate_disconnect(padapter, 0, _FALSE);
@@ -395,7 +395,7 @@ u8 rtw_set_802_11_ssid(_adapter *padapter, NDIS_802_11_SSID *ssid)
 #endif
 		} else {
 
-			rtw_disassoc_cmd(padapter, 0, _TRUE);
+			rtw_disassoc_cmd(padapter, 0, 0);
 
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 				rtw_indicate_disconnect(padapter, 0, _FALSE);
@@ -514,6 +514,7 @@ u8 rtw_set_802_11_infrastructure_mode(_adapter *padapter,
 	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct	wlan_network	*cur_network = &pmlmepriv->cur_network;
 	NDIS_802_11_NETWORK_INFRASTRUCTURE *pold_state = &(cur_network->network.InfrastructureMode);
+	u8 ap2sta_mode = _FALSE;
 
 
 
@@ -523,7 +524,7 @@ u8 rtw_set_802_11_infrastructure_mode(_adapter *padapter,
 		if (*pold_state == Ndis802_11APMode) {
 			/* change to other mode from Ndis802_11APMode			 */
 			cur_network->join_res = -1;
-
+			ap2sta_mode = _TRUE;
 #ifdef CONFIG_NATIVEAP_MLME
 			stop_ap_mode(padapter);
 #endif
@@ -532,7 +533,7 @@ u8 rtw_set_802_11_infrastructure_mode(_adapter *padapter,
 		_enter_critical_bh(&pmlmepriv->lock, &irqL);
 
 		if ((check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) || (*pold_state == Ndis802_11IBSS))
-			rtw_disassoc_cmd(padapter, 0, _TRUE);
+			rtw_disassoc_cmd(padapter, 0, 0);
 
 		if ((check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) ||
 		    (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE))
@@ -555,6 +556,9 @@ u8 rtw_set_802_11_infrastructure_mode(_adapter *padapter,
 
 		case Ndis802_11Infrastructure:
 			set_fwstate(pmlmepriv, WIFI_STATION_STATE);
+
+			if (ap2sta_mode)
+				rtw_init_bcmc_stainfo(padapter);
 			break;
 
 		case Ndis802_11APMode:
@@ -595,7 +599,7 @@ u8 rtw_set_802_11_disassociate(_adapter *padapter)
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) {
 
-		rtw_disassoc_cmd(padapter, 0, _TRUE);
+		rtw_disassoc_cmd(padapter, 0, 0);
 		rtw_indicate_disconnect(padapter, 0, _FALSE);
 		/* modify for CONFIG_IEEE80211W, none 11w can use it */
 		rtw_free_assoc_resources_cmd(padapter);
@@ -1153,7 +1157,7 @@ u16 rtw_get_cur_max_rate(_adapter *adapter)
 	short_GI = query_ra_short_GI(psta, psta->bw_mode);
 
 #ifdef CONFIG_80211N_HT
-	if (IsSupportedHT(psta->wireless_mode)) {
+	if (is_supported_ht(psta->wireless_mode)) {
 		rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 
 		max_rate = rtw_mcs_rate(
@@ -1164,7 +1168,7 @@ u16 rtw_get_cur_max_rate(_adapter *adapter)
 			   );
 	}
 #ifdef CONFIG_80211AC_VHT
-	else if (IsSupportedVHT(psta->wireless_mode))
+	else if (is_supported_vht(psta->wireless_mode))
 		max_rate = ((rtw_vht_mcs_to_data_rate(psta->bw_mode, short_GI, pmlmepriv->vhtpriv.vht_highest_rate) + 1) >> 1) * 10;
 #endif /* CONFIG_80211AC_VHT */
 	else

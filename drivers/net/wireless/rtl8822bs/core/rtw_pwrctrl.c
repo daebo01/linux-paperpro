@@ -158,7 +158,7 @@ int ips_leave(_adapter *padapter)
 	_exit_pwrlock(&pwrpriv->lock);
 
 	if (_SUCCESS == ret)
-		ODM_DMReset(&GET_HAL_DATA(padapter)->odmpriv);
+		odm_dm_reset(&GET_HAL_DATA(padapter)->odmpriv);
 
 #ifdef CONFIG_BT_COEXIST
 	if (_SUCCESS == ret)
@@ -220,7 +220,7 @@ bool rtw_pwr_unassociated_idle(_adapter *adapter)
 			    || check_fwstate(pmlmepriv, WIFI_AP_STATE)
 			    || check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE)
 #if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211)
-			    || pcfg80211_wdinfo->is_ro_ch
+			    || rtw_cfg80211_get_is_roch(iface) == _TRUE
 #elif defined(CONFIG_P2P)
 			    || rtw_p2p_chk_state(pwdinfo, P2P_STATE_IDLE)
 			    || rtw_p2p_chk_state(pwdinfo, P2P_STATE_LISTEN)
@@ -619,7 +619,7 @@ u8 PS_RDY_CHECK(_adapter *padapter)
 	    || check_fwstate(pmlmepriv, WIFI_AP_STATE)
 	    || check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE)
 #if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211)
-	    || pcfg80211_wdinfo->is_ro_ch
+	    || rtw_cfg80211_get_is_roch(padapter) == _TRUE
 #endif
 	    || rtw_is_scan_deny(padapter)
 #ifdef CONFIG_TDLS
@@ -791,6 +791,13 @@ void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode
 			return;
 #endif /* !CONFIG_BT_COEXIST */
 	}
+
+#ifdef CONFIG_FW_MULTI_PORT_SUPPORT
+	if (PS_MODE_ACTIVE != ps_mode) {
+		rtw_set_ps_rsvd_page(padapter);
+		rtw_set_default_port_id(padapter);
+	}
+#endif
 
 #ifdef CONFIG_LPS_PG
 	if ((PS_MODE_ACTIVE != ps_mode) && (pwrpriv->blpspg_info_up))
@@ -1030,7 +1037,7 @@ void LPS_Enter(PADAPTER padapter, const char *msg)
 	if (n_assoc_iface != 1)
 		return;
 
-#ifndef CONFIG_SUPPORT_FW_MULTI_PORT
+#ifndef CONFIG_FW_MULTI_PORT_SUPPORT
 	/* Skip lps enter request for adapter not port0 */
 	if (get_hw_port(padapter) != HW_PORT0)
 		return;
@@ -1387,6 +1394,15 @@ static void cpwm_event_callback(struct work_struct *work)
 
 	report.state = PS_STATE_S2;
 	cpwm_int_hdl(adapter, &report);
+}
+
+static void dma_event_callback(struct work_struct *work)
+{
+	struct pwrctrl_priv *pwrpriv = container_of(work, struct pwrctrl_priv, dma_event);
+	struct dvobj_priv *dvobj = pwrctl_to_dvobj(pwrpriv);
+	_adapter *adapter = dvobj_get_primary_adapter(dvobj);
+
+	rtw_unregister_tx_alive(adapter);
 }
 
 #ifdef CONFIG_LPS_RPWM_TIMER
@@ -1950,6 +1966,8 @@ void rtw_init_pwrctrl_priv(PADAPTER padapter)
 
 	_init_workitem(&pwrctrlpriv->cpwm_event, cpwm_event_callback, NULL);
 
+	_init_workitem(&pwrctrlpriv->dma_event, dma_event_callback, NULL);
+
 #ifdef CONFIG_LPS_RPWM_TIMER
 	pwrctrlpriv->brpwmtimeout = _FALSE;
 	_init_workitem(&pwrctrlpriv->rpwmtimeoutwi, rpwmtimeout_workitem_callback, NULL);
@@ -1962,6 +1980,7 @@ void rtw_init_pwrctrl_priv(PADAPTER padapter)
 	pwrctrlpriv->wowlan_mode = _FALSE;
 	pwrctrlpriv->wowlan_ap_mode = _FALSE;
 	pwrctrlpriv->wowlan_p2p_mode = _FALSE;
+	pwrctrlpriv->wowlan_last_wake_reason = 0;
 
 #ifdef CONFIG_RESUME_IN_WORKQUEUE
 	_init_workitem(&pwrctrlpriv->resume_work, resume_workitem_callback, NULL);
@@ -1985,18 +2004,17 @@ void rtw_init_pwrctrl_priv(PADAPTER padapter)
 
 #ifdef CONFIG_WOWLAN
 	rtw_wow_pattern_sw_reset(padapter);
-
+	pwrctrlpriv->wowlan_in_resume = _FALSE;
 #ifdef CONFIG_PNO_SUPPORT
 	pwrctrlpriv->pno_inited = _FALSE;
 	pwrctrlpriv->pnlo_info = NULL;
 	pwrctrlpriv->pscan_info = NULL;
 	pwrctrlpriv->pno_ssid_list = NULL;
-	pwrctrlpriv->pno_in_resume = _TRUE;
 #endif /* CONFIG_PNO_SUPPORT */
 #ifdef CONFIG_WOW_PATTERN_HW_CAM
 	_rtw_mutex_init(&pwrctrlpriv->wowlan_pattern_cam_mutex);
-	pwrctrlpriv->wowlan_aoac_rpt_loc = 0;
 #endif
+	pwrctrlpriv->wowlan_aoac_rpt_loc = 0;
 #endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_LPS_POFF

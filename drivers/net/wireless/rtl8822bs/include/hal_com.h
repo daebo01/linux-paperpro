@@ -212,6 +212,30 @@ typedef enum _CH_SW_USE_CASE {
 	CH_SW_USE_CASE_MCC		= 1
 } CH_SW_USE_CASE;
 
+typedef enum _WAKEUP_REASON{
+	RX_PAIRWISEKEY					= 0x01,
+	RX_GTK							= 0x02,
+	RX_FOURWAY_HANDSHAKE			= 0x03,
+	RX_DISASSOC						= 0x04,
+	RX_DEAUTH						= 0x08,
+	RX_ARP_REQUEST					= 0x09,
+	FW_DECISION_DISCONNECT			= 0x10,
+	RX_MAGIC_PKT					= 0x21,
+	RX_UNICAST_PKT					= 0x22,
+	RX_PATTERN_PKT					= 0x23,
+	RTD3_SSID_MATCH					= 0x24,
+	RX_REALWOW_V2_WAKEUP_PKT		= 0x30,
+	RX_REALWOW_V2_ACK_LOST			= 0x31,
+	ENABLE_FAIL_DMA_IDLE			= 0x40,
+	ENABLE_FAIL_DMA_PAUSE			= 0x41,
+	RTIME_FAIL_DMA_IDLE				= 0x42,
+	RTIME_FAIL_DMA_PAUSE			= 0x43,
+	RX_PNO							= 0x55,
+	AP_OFFLOAD_WAKEUP				= 0x66,
+	CLK_32K_UNLOCK					= 0xFD,
+	CLK_32K_LOCK					= 0xFE
+}WAKEUP_REASON;
+
 /*
  * Queue Select Value in TxDesc
  *   */
@@ -308,6 +332,8 @@ void rtw_hal_config_rftype(PADAPTER  padapter);
 #define WL_FUNC_FTM			BIT3
 #define WL_FUNC_BIT_NUM		4
 
+#define TBTT_PROBIHIT_HOLD_TIME 0x80
+
 int hal_spec_init(_adapter *adapter);
 void dump_hal_spec(void *sel, _adapter *adapter);
 
@@ -341,7 +367,7 @@ HAL_IsLegalChannel(
 
 u8	MRateToHwRate(u8 rate);
 
-u8	HwRateToMRate(u8 rate);
+u8	hw_rate_to_m_rate(u8 rate);
 
 void	HalSetBrateCfg(
 	IN PADAPTER		Adapter,
@@ -510,6 +536,9 @@ void rtw_hal_set_fw_rsvd_page(_adapter *adapter, bool finished);
 		s32 rtw_hal_ch_sw_oper_offload(_adapter *padapter, u8 channel, u8 channel_offset, u16 bwmode);
 	#endif
 #endif
+#if defined(CONFIG_BT_COEXIST) && defined(CONFIG_FW_MULTI_PORT_SUPPORT)
+s32 rtw_hal_set_wifi_port_id_cmd(_adapter *adapter);
+#endif
 
 #ifdef CONFIG_GPIO_API
 	u8 rtw_hal_get_gpio(_adapter *adapter, u8 gpio_num);
@@ -608,9 +637,7 @@ void StopTxBeacon(_adapter *padapter);
 	u8 rtw_hal_set_lps_pg_info(_adapter *adapter);
 #endif
 
-#ifdef CONFIG_SUPPORT_FIFO_DUMP
 int rtw_hal_get_rsvd_page(_adapter *adapter, u32 page_offset, u32 page_num, u8 *buffer, u32 buffer_size);
-#endif
 
 #ifdef CONFIG_WOWLAN
 struct rtl_wow_pattern {
@@ -625,7 +652,12 @@ void rtw_wow_pattern_read_cam_ent(_adapter *adapter, u8 id, struct  rtl_wow_patt
 void rtw_dump_wow_pattern(void *sel, struct rtl_wow_pattern *pwow_pattern, u8 idx);
 #endif
 #endif
-#ifdef CONFIG_PHY_CAPABILITY_QUERY
 void rtw_dump_phy_cap(void *sel, _adapter *adapter);
+
+#ifdef CONFIG_FW_MULTI_PORT_SUPPORT
+s32 rtw_hal_set_default_port_id_cmd(_adapter *adapter, u8 mac_id);
+s32 rtw_set_default_port_id(_adapter *adapter);
+s32 rtw_set_ps_rsvd_page(_adapter *adapter);
 #endif
+
 #endif /* __HAL_COMMON_H__ */

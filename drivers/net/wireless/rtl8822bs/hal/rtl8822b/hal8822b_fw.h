@@ -1,24 +1,45 @@
+/******************************************************************************
+*
+* Copyright(c) 2007 - 2016 Realtek Corporation. All rights reserved.
+*
+* This program is free software; you can redistribute it and/or modify it
+* under the terms of version 2 of the GNU General Public License as
+* published by the Free Software Foundation.
+*
+* This program is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+* more details.
+*
+* You should have received a copy of the GNU General Public License along with
+* this program; if not, write to the Free Software Foundation, Inc.,
+* 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+*
+*
+******************************************************************************/
 
 #ifdef CONFIG_RTL8822B
+
 #ifndef _FW_HEADER_8822B_H
 #define _FW_HEADER_8822B_H
 
 #ifdef LOAD_FW_HEADER_FROM_DRIVER
-#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN)) || (DM_ODM_SUPPORT_TYPE & (ODM_CE))
-extern u1Byte Array_MP_8822B_FW_NIC[107896];
-extern u4Byte ArrayLength_MP_8822B_FW_NIC;
-
 #if (defined(CONFIG_AP_WOWLAN) || (DM_ODM_SUPPORT_TYPE & (ODM_AP)))
-extern u1Byte Array_MP_8822B_FW_AP[75544];
-extern u4Byte ArrayLength_MP_8822B_FW_AP;
+extern u8 array_mp_8822b_fw_ap[81992];
+extern u32 array_length_mp_8822b_fw_ap;
 #endif
 
-extern u1Byte Array_MP_8822B_FW_WoWLAN[63168];
-extern u4Byte ArrayLength_MP_8822B_FW_WoWLAN;
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN)) || (DM_ODM_SUPPORT_TYPE & (ODM_CE))
+extern u8 array_mp_8822b_fw_nic[131264];
+extern u32 array_length_mp_8822b_fw_nic;
+#ifdef CONFIG_WOWLAN
+extern u8 array_mp_8822b_fw_wowlan[75048];
+extern u32 array_length_mp_8822b_fw_wowlan;
+#endif /*CONFIG_WOWLAN*/
 #endif
-#endif /* end of LOAD_FW_HEADER_FROM_DRIVER*/
+#endif /* end of LOAD_FW_HEADER_FROM_DRIVER */
 
 #endif
-#endif /* end of HWIMG_SUPPORT*/
 
+#endif
 

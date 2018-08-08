@@ -254,11 +254,11 @@ static s32 xmit_xmitframes(PADAPTER adapter, struct xmit_priv *pxmitpriv)
 
 					pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
 					if (pxmitbuf == NULL) {
-						RTW_ERR("%s: xmit_buf is not enough!\n", __FUNCTION__);
+						RTW_DBG("%s: xmit_buf is not enough!\n", __FUNCTION__);
 						err = -2;
 #ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
-						_rtw_up_sema(&(GET_PRIMARY_ADAPTER(adapter)->xmitpriv.xmit_sema));
-#endif
+						_rtw_up_sema(&GET_PRIMARY_ADAPTER(adapter)->xmitpriv.xmit_sema);
+#endif /* CONFIG_SDIO_TX_ENABLE_AVAL_INT */
 						break;
 					}
 					k = 0;
@@ -500,7 +500,7 @@ s32 rtl8822bs_mgnt_xmit(PADAPTER adapter, struct xmit_frame *pmgntframe)
 	pxmitbuf->ptail = pmgntframe->buf_addr + pxmitbuf->len;
 
 	pframe = pmgntframe->buf_addr + txdesc_size;
-	subtype = GetFrameSubType(pframe);
+	subtype = get_frame_sub_type(pframe);
 
 	rtw_count_tx_stats(adapter, pmgntframe, pattrib->last_txcmdsz);
 

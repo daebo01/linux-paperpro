@@ -57,7 +57,11 @@
 		#define NR_XMITBUFF	(4)
 	#endif /* CONFIG_SINGLE_XMIT_BUF */
 #elif defined (CONFIG_PCI_HCI)
+#ifdef CONFIG_TX_AMSDU
+	#define MAX_XMITBUF_SZ	(3500)
+#else
 	#define MAX_XMITBUF_SZ	(1664)
+#endif
 	#define NR_XMITBUFF	(128)
 #endif
 
@@ -114,11 +118,7 @@
 	#ifdef CONFIG_TRX_BD_ARCH
 		#define TX_BD_NUM			(128+1)	/* +1 result from ring buffer */
 	#else
-		/* #define TXDESC_NUM						64 */
-		#define TXDESC_NUM						128
-		#define TXBD_NUM				TXDESC_NUM
-		#define TXDESC_NUM_BE_QUEUE			128
-		#define TXBD_NUM_RSVD				2
+		#define TXDESC_NUM			128
 	#endif
 #endif
 
@@ -412,6 +412,7 @@ struct pkt_attrib {
 	u8	sgi;/* short GI */
 	u8	ampdu_en;/* tx ampdu enable */
 	u8	ampdu_spacing; /* ampdu_min_spacing for peer sta's rx */
+	u8	amsdu;
 	u8	mdata;/* more data bit */
 	u8	pctrl;/* per packet txdesc control enable */
 	u8	triggered;/* for ap mode handling Power Saving sta */
@@ -446,8 +447,24 @@ struct pkt_attrib {
 #ifdef CONFIG_BEAMFORMING
 	u16 txbf_p_aid;/*beamforming Partial_AID*/
 	u16 txbf_g_id;/*beamforming Group ID*/
+
+	/*
+	 * 2'b00: Unicast NDPA
+	 * 2'b01: Broadcast NDPA
+	 * 2'b10: Beamforming Report Poll
+	 * 2'b11: Final Beamforming Report Poll
+	 */
+	u8 bf_pkt_type;
 #endif
 
+};
+#endif
+
+#ifdef CONFIG_TX_AMSDU
+enum {
+	RTW_AMSDU_TIMER_UNSET = 0,
+	RTW_AMSDU_TIMER_SETTING,
+	RTW_AMSDU_TIMER_TIMEOUT,
 };
 #endif
 
@@ -497,6 +514,7 @@ enum {
 	RTW_SCTX_DONE_DRV_STOP,
 	RTW_SCTX_DONE_DEV_REMOVE,
 	RTW_SCTX_DONE_CMD_ERROR,
+	RTX_SCTX_CSTR_WAIT_RPT2,
 };
 
 
@@ -802,6 +820,26 @@ struct	xmit_priv	{
 	struct submit_ctx ack_tx_ops;
 	u8 seq_no;
 #endif
+
+#ifdef CONFIG_TX_AMSDU
+	_timer amsdu_vo_timer;
+	u8 amsdu_vo_timeout;
+
+	_timer amsdu_vi_timer;
+	u8 amsdu_vi_timeout;
+
+	_timer amsdu_be_timer;
+	u8 amsdu_be_timeout;
+
+	_timer amsdu_bk_timer;
+	u8 amsdu_bk_timeout;
+
+	u32 amsdu_debug_set_timer;
+	u32 amsdu_debug_timeout;
+	u32 amsdu_debug_coalesce_one;
+	u32 amsdu_debug_coalesce_two;
+
+#endif
 	_lock lock_sctx;
 };
 
@@ -873,9 +911,9 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv);
 
 void rtw_alloc_hwxmits(_adapter *padapter);
 void rtw_free_hwxmits(_adapter *padapter);
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24))
 s32 rtw_monitor_xmit_entry(struct sk_buff *skb, struct net_device *ndev);
-
+#endif
 s32 rtw_xmit(_adapter *padapter, _pkt **pkt);
 bool xmitframe_hiq_filter(struct xmit_frame *xmitframe);
 #if defined(CONFIG_AP_MODE) || defined(CONFIG_TDLS)
@@ -886,6 +924,15 @@ void xmit_delivery_enabled_frames(_adapter *padapter, struct sta_info *psta);
 #endif
 
 u8 rtw_get_tx_bw_mode(_adapter *adapter, struct sta_info *sta);
+
+void rtw_get_adapter_tx_rate_bmp_by_bw(_adapter *adapter, u8 bw, u16 *r_bmp_cck_ofdm, u32 *r_bmp_ht, u32 *r_bmp_vht);
+void rtw_update_tx_rate_bmp(struct dvobj_priv *dvobj);
+u16 rtw_get_tx_rate_bmp_cck_ofdm(struct dvobj_priv *dvobj);
+u32 rtw_get_tx_rate_bmp_ht_by_bw(struct dvobj_priv *dvobj, u8 bw);
+u32 rtw_get_tx_rate_bmp_vht_by_bw(struct dvobj_priv *dvobj, u8 bw);
+u8 rtw_get_tx_bw_bmp_of_ht_rate(struct dvobj_priv *dvobj, u8 rate, u8 max_bw);
+u8 rtw_get_tx_bw_bmp_of_vht_rate(struct dvobj_priv *dvobj, u8 rate, u8 max_bw);
+
 u8 query_ra_short_GI(struct sta_info *psta, u8 bw);
 
 u8	qos_acm(u8 acm_mask, u8 priority);
@@ -897,6 +944,22 @@ struct xmit_buf	*dequeue_pending_xmitbuf(struct xmit_priv *pxmitpriv);
 struct xmit_buf	*select_and_dequeue_pending_xmitbuf(_adapter *padapter);
 sint	check_pending_xmitbuf(struct xmit_priv *pxmitpriv);
 thread_return	rtw_xmit_thread(thread_context context);
+#endif
+
+#ifdef CONFIG_TX_AMSDU
+extern void rtw_amsdu_vo_timeout_handler(void *FunctionContext);
+extern void rtw_amsdu_vi_timeout_handler(void *FunctionContext);
+extern void rtw_amsdu_be_timeout_handler(void *FunctionContext);
+extern void rtw_amsdu_bk_timeout_handler(void *FunctionContext);
+
+extern u8 rtw_amsdu_get_timer_status(_adapter *padapter, u8 priority);
+extern void rtw_amsdu_set_timer_status(_adapter *padapter, u8 priority, u8 status);
+extern void rtw_amsdu_set_timer(_adapter *padapter, u8 priority);
+extern void rtw_amsdu_cancel_timer(_adapter *padapter, u8 priority);
+
+extern s32 rtw_xmitframe_coalesce_amsdu(_adapter *padapter, struct xmit_frame *pxmitframe, struct xmit_frame *pxmitframe_queue);	
+extern int check_amsdu(struct xmit_frame *pxmitframe);
+extern struct xmit_frame *rtw_get_xframe(struct xmit_priv *pxmitpriv, int *num_frame);
 #endif
 
 static void do_queue_select(_adapter *padapter, struct pkt_attrib *pattrib);

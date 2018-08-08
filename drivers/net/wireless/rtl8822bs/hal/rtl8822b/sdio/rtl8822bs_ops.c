@@ -54,9 +54,32 @@ static void read_adapter_info(PADAPTER adapter)
 	 */
 }
 
-u32 rtl8822bs_get_interrupt(PADAPTER adapter)
+void rtl8822bs_get_interrupt(PADAPTER adapter, u32 *hisr, u32 *rx_len)
 {
-	return rtw_read32(adapter, REG_SDIO_HISR_8822B);
+	u8 data[8] = {0};
+	u32 addr, sz;
+	u8 *buf;
+
+
+	if (hisr) {
+		addr = REG_SDIO_HISR_8822B;
+		sz = 4;
+		buf = data;
+		if (rx_len)
+			sz += 4;
+	} else {
+		addr = REG_SDIO_RX_REQ_LEN_8822B;
+		sz = 4;
+		buf = &data[4];
+	}
+
+	rtw_read_mem(adapter, addr, sz, buf);
+
+	if (hisr)
+		*hisr = le32_to_cpu(*(u32 *)data);
+	/* REG_SDIO_RX_REQ_LEN_8822B[17:0] */
+	if (rx_len)
+		*rx_len = le32_to_cpu(*(u32 *)&data[4]) & 0x3FFFF;
 }
 
 void rtl8822bs_clear_interrupt(PADAPTER adapter, u32 hisr)
@@ -177,22 +200,6 @@ static void disable_interrupt(PADAPTER adapter)
 	update_himr(adapter, 0);
 	RTW_INFO("%s: update SDIO HIMR=0\n", __FUNCTION__);
 }
-
-#ifdef CONFIG_WOWLAN
-void rtl8822bs_disable_interrupt_but_cpwm2(PADAPTER adapter)
-{
-	u32 himr, tmp;
-
-	tmp = rtw_read32(adapter, REG_SDIO_HIMR);
-	RTW_INFO("%s: Read SDIO_REG_HIMR: 0x%08x\n", __FUNCTION__, tmp);
-
-	himr = BIT_SDIO_CPWM2_MSK;
-	update_himr(adapter, himr);
-
-	tmp = rtw_read32(adapter, REG_SDIO_HIMR);
-	RTW_INFO("%s: Read again SDIO_REG_HIMR: 0x%08x\n", __FUNCTION__, tmp);
-}
-#endif /* CONFIG_WOWLAN */
 
 static void _run_thread(PADAPTER adapter)
 {
@@ -345,8 +352,22 @@ static u8 gethaldefvar(PADAPTER adapter, HAL_DEF_VARIABLE eVariable, void *pval)
 	hal = GET_HAL_DATA(adapter);
 
 	switch (eVariable) {
-	case HAL_DEF_MAX_RECVBUF_SZ:
-		*((u32 *)pval) = MAX_RECVBUF_SZ_8822B;
+	case HW_VAR_MAX_RX_AMPDU_FACTOR:
+#ifdef RTW_DYNAMIC_AMPDU_SIZE
+		if (check_fwstate(&adapter->mlmepriv, WIFI_AP_STATE) == _TRUE)
+			/* Set AMPDU Factor 32K for AP mode */
+			*(HT_CAP_AMPDU_FACTOR *)pval = MAX_AMPDU_FACTOR_32K;
+		else
+			/* Default use MAX size */
+			*(HT_CAP_AMPDU_FACTOR *)pval = MAX_AMPDU_FACTOR_64K;
+#else /* !RTW_DYNAMIC_AMPDU_SIZE */
+#ifdef CONFIG_SUPPORT_TRX_SHARED
+		*(HT_CAP_AMPDU_FACTOR *)pval = MAX_AMPDU_FACTOR_32K;
+#else /* !CONFIG_SUPPORT_TRX_SHARED */
+		/* 8822B RX FIFO is 24KB */
+		*(HT_CAP_AMPDU_FACTOR *)pval = MAX_AMPDU_FACTOR_16K;
+#endif /* !CONFIG_SUPPORT_TRX_SHARED */
+#endif /* !RTW_DYNAMIC_AMPDU_SIZE */
 		break;
 
 	default:
@@ -389,7 +410,7 @@ void rtl8822bs_set_hal_ops(PADAPTER adapter)
 
 	rtl8822b_set_hal_ops(adapter);
 
-	ops = &adapter->HalFunc;
+	ops = &adapter->hal_func;
 
 	ops->init_default_value = rtl8822bs_init_default_value;
 	ops->intf_chip_configure = intf_chip_configure;
@@ -410,6 +431,9 @@ void rtl8822bs_set_hal_ops(PADAPTER adapter)
 
 	ops->init_recv_priv = rtl8822bs_init_recv_priv;
 	ops->free_recv_priv = rtl8822bs_free_recv_priv;
+#ifdef CONFIG_RECV_THREAD_MODE
+	ops->recv_hdl = rtl8822bs_recv_hdl;
+#endif
 
 	ops->enable_interrupt = enable_interrupt;
 	ops->disable_interrupt = disable_interrupt;
@@ -420,8 +444,24 @@ void rtl8822bs_set_hal_ops(PADAPTER adapter)
 	ops->InitSwLeds = rtl8822bs_initswleds;
 	ops->DeInitSwLeds = rtl8822bs_deinitswleds;
 
-	ops->SetHwRegHandler = sethwreg;
+	ops->set_hw_reg_handler = sethwreg;
 	ops->GetHwRegHandler = gethwreg;
-	ops->GetHalDefVarHandler = gethaldefvar;
+	ops->get_hal_def_var_handler = gethaldefvar;
 	ops->SetHalDefVarHandler = sethaldefvar;
 }
+
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+void rtl8822bs_disable_interrupt_but_cpwm2(PADAPTER adapter)
+{
+	u32 himr, tmp;
+
+	tmp = rtw_read32(adapter, REG_SDIO_HIMR);
+	RTW_INFO("%s: Read SDIO_REG_HIMR: 0x%08x\n", __FUNCTION__, tmp);
+
+	himr = BIT_SDIO_CPWM2_MSK;
+	update_himr(adapter, himr);
+
+	tmp = rtw_read32(adapter, REG_SDIO_HIMR);
+	RTW_INFO("%s: Read again SDIO_REG_HIMR: 0x%08x\n", __FUNCTION__, tmp);
+}
+#endif /* CONFIG_WOWLAN */

@@ -4,84 +4,83 @@
 #if (RTL8822B_SUPPORT == 1)
 #if (BEAMFORMING_SUPPORT == 1)
 
-VOID
-HalTxbf8822B_Init(
-	IN PVOID			pDM_VOID
-	);
+void
+hal_txbf_8822b_init(
+	void			*p_dm_void
+);
 
-VOID
-HalTxbf8822B_Enter(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
-
-
-VOID
-HalTxbf8822B_Leave(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
+void
+hal_txbf_8822b_enter(
+	void			*p_dm_void,
+	u8				idx
+);
 
 
-VOID
-HalTxbf8822B_Status(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
+void
+hal_txbf_8822b_leave(
+	void			*p_dm_void,
+	u8				idx
+);
 
-VOID
-HalTxbf8822B_ConfigGtab(
-	IN PVOID			pDM_VOID
-	);
 
-VOID
-HalTxbf8822B_FwTxBF(
-	IN PVOID			pDM_VOID,
-	IN	u1Byte				Idx
-	);
+void
+hal_txbf_8822b_status(
+	void			*p_dm_void,
+	u8				beamform_idx
+);
+
+void
+hal_txbf_8822b_config_gtab(
+	void			*p_dm_void
+);
+
+void
+hal_txbf_8822b_fw_txbf(
+	void			*p_dm_void,
+	u8				idx
+);
 #else
-#define HalTxbf8822B_Init(pDM_VOID)		
-#define HalTxbf8822B_Enter(pDM_VOID, Idx)
-#define HalTxbf8822B_Leave(pDM_VOID, Idx)
-#define HalTxbf8822B_Status(pDM_VOID, Idx)
-#define HalTxbf8822B_FwTxBF(pDM_VOID, Idx)
-#define HalTxbf8822B_ConfigGtab(pDM_VOID)
+#define hal_txbf_8822b_init(p_dm_void)
+#define hal_txbf_8822b_enter(p_dm_void, idx)
+#define hal_txbf_8822b_leave(p_dm_void, idx)
+#define hal_txbf_8822b_status(p_dm_void, idx)
+#define hal_txbf_8822b_fw_txbf(p_dm_void, idx)
+#define hal_txbf_8822b_config_gtab(p_dm_void)
 
 #endif
 
 #if (defined(CONFIG_BB_TXBF_API))
-VOID
+void
 phydm_8822btxbf_rfmode(
-	IN PVOID		pDM_VOID,
-	IN u1Byte	SUBFeeCnt,
-	IN u1Byte	MUBFeeCnt
-	);
+	void		*p_dm_void,
+	u8	su_bfee_cnt,
+	u8	mu_bfee_cnt
+);
 
-VOID
+void
 phydm_8822b_sutxbfer_workaroud(
-	IN PVOID		pDM_VOID,
-	IN BOOLEAN	EnableSUBfer,
-	IN u1Byte	Nc,
-	IN u1Byte	Nr,
-	IN u1Byte	Ng,
-	IN u1Byte	CB,
-	IN u1Byte	BW,
-	IN BOOLEAN	isVHT
-	);
+	void		*p_dm_void,
+	bool	enable_su_bfer,
+	u8	nc,
+	u8	nr,
+	u8	ng,
+	u8	CB,
+	u8	BW,
+	bool	is_vht
+);
 
 #else
-#define phydm_8822btxbf_rfmode(pDM_VOID, SUBFeeCnt, MUBFeeCnt)
-#define phydm_8822b_sutxbfer_workaroud(pDM_VOID, EnableSUBfer, Nc, Nr, Ng, CB, BW, isVHT)
+#define phydm_8822btxbf_rfmode(p_dm_void, su_bfee_cnt, mu_bfee_cnt)
+#define phydm_8822b_sutxbfer_workaroud(p_dm_void, enable_su_bfer, nc, nr, ng, CB, BW, is_vht)
 #endif
 
 #else
-#define HalTxbf8822B_Init(pDM_VOID)		
-#define HalTxbf8822B_Enter(pDM_VOID, Idx)
-#define HalTxbf8822B_Leave(pDM_VOID, Idx)
-#define HalTxbf8822B_Status(pDM_VOID, Idx)
-#define HalTxbf8822B_FwTxBF(pDM_VOID, Idx)
-#define HalTxbf8822B_ConfigGtab(pDM_VOID)
+#define hal_txbf_8822b_init(p_dm_void)
+#define hal_txbf_8822b_enter(p_dm_void, idx)
+#define hal_txbf_8822b_leave(p_dm_void, idx)
+#define hal_txbf_8822b_status(p_dm_void, idx)
+#define hal_txbf_8822b_fw_txbf(p_dm_void, idx)
+#define hal_txbf_8822b_config_gtab(p_dm_void)
 
 #endif
 #endif
-

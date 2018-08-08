@@ -91,6 +91,9 @@
 	#ifndef CONFIG_FW_C2H_PKT
 		#define CONFIG_FW_C2H_PKT
 	#endif
+	#ifndef CONFIG_RTW_MAC_HIDDEN_RPT
+		#define CONFIG_RTW_MAC_HIDDEN_RPT
+	#endif
 #endif
 
 #ifdef CONFIG_RTL8814A
@@ -107,6 +110,9 @@
 	#ifndef CONFIG_FW_C2H_PKT
 		#define CONFIG_FW_C2H_PKT
 	#endif
+	#ifndef CONFIG_RTW_MAC_HIDDEN_RPT
+		#define CONFIG_RTW_MAC_HIDDEN_RPT
+	#endif
 #endif
 
 #ifdef CONFIG_RTL8188F
@@ -115,6 +121,9 @@
 	#ifndef CONFIG_FW_C2H_PKT
 		#define CONFIG_FW_C2H_PKT
 	#endif
+	#ifndef CONFIG_RTW_MAC_HIDDEN_RPT
+		#define CONFIG_RTW_MAC_HIDDEN_RPT
+	#endif
 #endif
 
 #ifdef CONFIG_RTL8822B
@@ -122,11 +131,54 @@
 	#define RTL8822B_SUPPORT				1
 	#ifndef CONFIG_FW_C2H_PKT
 		#define CONFIG_FW_C2H_PKT
-	#endif
+	#endif /* CONFIG_FW_C2H_PKT */
 
+	#define RTW_TX_PA_BIAS	/* Adjust TX PA Bias from eFuse */
+	#ifdef RTW_TX_PA_BIAS
+		#define RTW_TX_PA_BIAS_DRV	/* Run in driver not phydm */
+	#endif /* RTW_TX_PA_BIAS */
+	#define CONFIG_DFS	/* Enable 5G band 2&3 channel */
+
+	#ifdef CONFIG_WOWLAN
+		#define CONFIG_GTK_OL
+		#define CONFIG_ARP_KEEP_ALIVE
+		#ifndef CONFIG_DEFAULT_PATTERNS_EN
+			#warning "Force to enable CONFIG_DEFAULT_PATTERNS_EN under WOW"
+			#define CONFIG_DEFAULT_PATTERNS_EN
+		#endif /* !CONFIG_DEFAULT_PATTERNS_EN */
+
+		#ifdef CONFIG_GPIO_WAKEUP
+			#ifndef WAKEUP_GPIO_IDX
+				#define WAKEUP_GPIO_IDX	6	/* WIFI Chip Side */
+			#endif /* !WAKEUP_GPIO_IDX */
+		#endif /* CONFIG_GPIO_WAKEUP */
+
+	#endif /* CONFIG_WOWLAN */
 	#ifdef CONFIG_CONCURRENT_MODE
 		#define CONFIG_AP_PORT_SWAP
 	#endif /* CONFIG_CONCURRENT_MODE */
+
+	/*
+	 * Beamforming related definition
+	 */
+	#if defined(CONFIG_CONCURRENT_MODE) && defined(CONFIG_BEAMFORMING)
+		#undef CONFIG_BEAMFORMING
+		#warning "Not support Beamforming in concurrent mode yet!!"
+	#endif /* CONFIG_CONCURRENT_MODE && CONFIG_BEAMFORMING */
+	/* Beamforming mechanism is on driver not phydm, always disable it */
+	#define BEAMFORMING_SUPPORT				0
+	/* Only support new beamforming mechanism */
+	#ifdef CONFIG_BEAMFORMING
+		#define RTW_BEAMFORMING_VERSION_2
+	#endif /* CONFIG_BEAMFORMING */
+
+	#ifndef CONFIG_RTW_MAC_HIDDEN_RPT
+		#define CONFIG_RTW_MAC_HIDDEN_RPT
+	#endif /* CONFIG_RTW_MAC_HIDDEN_RPT */
+
+	#ifndef DBG_RX_DFRAME_RAW_DATA
+		#define DBG_RX_DFRAME_RAW_DATA
+	#endif /* DBG_RX_DFRAME_RAW_DATA */
 #endif /* CONFIG_RTL8822B */
 
 #ifdef CONFIG_RTL8821C
@@ -135,12 +187,16 @@
 	#ifndef CONFIG_FW_C2H_PKT
 		#define CONFIG_FW_C2H_PKT
 	#endif
+	#ifndef CONFIG_RTW_MAC_HIDDEN_RPT
+		#define CONFIG_RTW_MAC_HIDDEN_RPT
+	#endif
 	#define LOAD_FW_HEADER_FROM_DRIVER
 	#define CONFIG_PHY_CAPABILITY_QUERY
 	#ifdef CONFIG_CONCURRENT_MODE
 	#define CONFIG_AP_PORT_SWAP
-	/*#define CONFIG_SUPPORT_FW_MULTI_PORT*/
+	/*#define CONFIG_FW_MULTI_PORT_SUPPORT*/
 	#endif
+	#define CONFIG_SUPPORT_FIFO_DUMP
 #endif
 
 #endif /*__HAL_IC_CFG_H__*/
