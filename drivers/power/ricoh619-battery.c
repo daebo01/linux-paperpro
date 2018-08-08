@@ -1239,12 +1239,7 @@ static int calc_capacity_in_period(struct ricoh61x_battery_info *info,
 #else
 		// Rounded to the 0.01%
 		// cc_sum * 10000/3600(s)/fa_Cap
-		int	cc_cap_val = cc_sum*100000/3600/fa_cap; /* unit : 0.001%  */
-		*cc_cap = cc_cap_val/10;		/* unit is 0.01% */
-		if (4 < (cc_cap_val%10)) {
-			SUSPEND_PRINT("PMU: cc_cap_val%%10 = %d\n",cc_cap_val%10);
-			*cc_cap++;
-		}
+		*cc_cap = ((((cc_sum*250)/9)/fa_cap)+5)/10;		/* unit is 0.01% */
 #endif
 	}
 
