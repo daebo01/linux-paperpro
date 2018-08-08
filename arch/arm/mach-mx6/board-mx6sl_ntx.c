@@ -3721,7 +3721,6 @@ int _combo_wifi_power_ctrl (int isWifiEnable)
 	int iHWID;
 	int iOldStatus;
 
-	mutex_lock(&ntx_wifi_power_mutex);
 	iOldStatus = gi_wifi_power_status;
 	printk("Wifi / BT power control %d\n", isWifiEnable);
 	if (isWifiEnable & 3) {
@@ -3747,7 +3746,6 @@ int _combo_wifi_power_ctrl (int isWifiEnable)
 
 	if ((isWifiEnable&1) == (iOldStatus&1)) {
 			printk ("Wifi already %s.\n",(isWifiEnable&1)?"on":"off");
-			mutex_unlock(&ntx_wifi_power_mutex);
 			return iOldStatus;
 	}
 	if((isWifiEnable&1) == 0) {
@@ -3856,26 +3854,29 @@ int _combo_wifi_power_ctrl (int isWifiEnable)
 		}
 	}
 	printk("%s() end.\n",__FUNCTION__);
-	mutex_unlock(&ntx_wifi_power_mutex);
 	return iOldStatus;
 }
 
 void ntx_bt_power_ctrl(int iIsBTEnable)
 {
+	mutex_lock(&ntx_wifi_power_mutex);
 	if (iIsBTEnable)
 		_ntx_wifi_power_ctrl(gi_wifi_power_status | 2);
 	else
 		_ntx_wifi_power_ctrl(gi_wifi_power_status & ~2);
+	mutex_unlock(&ntx_wifi_power_mutex);
 }
 
 void ntx_wifi_power_ctrl(int iIsWifiEnable)
 {
 
 	if (11 == gptHWCFG->m_val.bWifi || 12 == gptHWCFG->m_val.bWifi) { 
+		mutex_lock(&ntx_wifi_power_mutex);
 		if (iIsWifiEnable)
 			_ntx_wifi_power_ctrl(gi_wifi_power_status | 1);
 		else
 			_ntx_wifi_power_ctrl(gi_wifi_power_status & ~1);
+		mutex_unlock(&ntx_wifi_power_mutex);
 	} else {
 		_ntx_wifi_power_ctrl(iIsWifiEnable);
 	}
