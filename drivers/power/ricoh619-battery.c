@@ -1233,8 +1233,19 @@ static int calc_capacity_in_period(struct ricoh61x_battery_info *info,
 
 	if(fa_cap == 0)
 		goto out;
-	else
+	else {
+#if 0
 		*cc_cap = cc_sum*25/9/fa_cap;		/* unit is 0.01% */
+#else
+		// cc_sum * 10000/3600(s)/fa_Cap
+		int	cc_cap_val = cc_sum*100000/3600/fa_cap; /* unit : 0.001%  */
+		*cc_cap = cc_cap_val/10;		/* unit is 0.01% */
+		if (4 < (cc_cap_val%10)) {
+			SUSPEND_PRINT("PMU: cc_cap_val%%10 = %d\n",cc_cap_val%10);
+			*cc_cap++;
+		}
+#endif
+	}
 
 	*cc_cap_mas = cc_sum;
 
@@ -1791,7 +1802,7 @@ static int calc_soc_by_voltageMethod(struct ricoh61x_battery_info *info)
 						break;
 					}
 				}
-			}		
+			}
 		}
 		else {
 			if(info->soca->Vbat_ave > 4100000) {
@@ -2363,7 +2374,7 @@ static void ricoh61x_displayed_work(struct work_struct *work)
 						= RICOH61x_SOCA_STABLE;
 					delay_flag = 1;
 				}
-			} else if (last_disp_round < soc_round) {
+			} else if (last_disp_round <= soc_round) {
 				/* Case 4 : Dis-Charge, Display < SOC */
 				if (info->soca->soc_delta <= -300) {
 					info->soca->displayed_soc -= 100;
@@ -6260,7 +6271,8 @@ static int ricoh61x_battery_suspend(struct device *dev)
 
 			if (info->soca->status == RICOH61x_SOCA_START
 				|| info->soca->status == RICOH61x_SOCA_UNSTABLE
-				|| info->soca->status == RICOH61x_SOCA_STABLE) {
+				|| info->soca->status == RICOH61x_SOCA_STABLE
+				|| info->soca->status == RICOH61x_SOCA_DISP) {
 				displayed_soc_temp
 					 = info->soca->init_pswr * 100 + info->soca->cc_delta;
 			} else {
