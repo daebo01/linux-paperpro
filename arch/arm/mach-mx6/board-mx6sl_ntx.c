@@ -3597,7 +3597,9 @@ int _wifi_power_ctrl (int isWifiEnable)
 	printk("Wifi / BT power control %d\n", isWifiEnable);
 
 	if((isWifiEnable&1) == 0){
-		gpio_direction_output (gMX6SL_WIFI_RST, 0);
+		if(gMX6SL_WIFI_RST!=(unsigned int)(-1)) {
+			gpio_direction_output (gMX6SL_WIFI_RST, 0);
+		}
 		gpio_direction_input (gMX6SL_WIFI_3V3);	// turn off Wifi_3V3_on
 
 		msleep(10);
@@ -3788,7 +3790,9 @@ int _combo_wifi_power_ctrl (int isWifiEnable)
 
 //		gpio_direction_input (gMX6SL_WIFI_INT);
 		msleep(10);
-		gpio_direction_output (gMX6SL_WIFI_RST, 1);	// turn on wifi_RST
+		if(gMX6SL_WIFI_RST!=(unsigned int)(-1)) {
+			gpio_direction_output (gMX6SL_WIFI_RST, 1);	// turn on wifi_RST
+		}
 		//schedule_timeout(HZ/10);
 		msleep(100);
 #ifdef _WIFI_ALWAYS_ON_
@@ -4299,7 +4303,21 @@ static void ntx_gpio_init(void)
 		}
 
  		gMX6SL_WIFI_3V3 = IMX_GPIO_NR(4, 29);
- 		gMX6SL_WIFI_RST = IMX_GPIO_NR(5, 0);
+
+		// Wifi Reset pin assignment 
+		if(64==gptHWCFG->m_val.bPCB) {
+			// C31Q0X .
+			if(0x00==gptHWCFG->m_val.bPCB_REV) {
+ 				gMX6SL_WIFI_RST = (unsigned int)(-1);
+			}
+			else {
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_KEY_ROW0__GPIO_3_25);
+ 				gMX6SL_WIFI_RST = IMX_GPIO_NR(3, 25);
+			}
+		}
+		else {
+ 			gMX6SL_WIFI_RST = IMX_GPIO_NR(5, 0);
+		}
  		gMX6SL_WIFI_INT = IMX_GPIO_NR(4, 31);
  		mx6_ntx_sd_wifi_data.cd_gpio = gMX6SL_WIFI_3V3;
 
@@ -4525,7 +4543,9 @@ static void ntx_gpio_init(void)
 	}
 	
 	mxc_iomux_v3_setup_pad(MX6SL_PAD_SD2_DAT5__GPIO_4_31);
-	gpio_request (gMX6SL_WIFI_RST, "MX6SL_WIFI_RST");
+	if(gMX6SL_WIFI_RST!=(unsigned int)(-1)) {
+		gpio_request (gMX6SL_WIFI_RST, "MX6SL_WIFI_RST");
+	}
 	gpio_request (gMX6SL_WIFI_3V3, "MX6SL_WIFI_3V3");
 	gpio_request (gMX6SL_WIFI_INT, "MX6SL_WIFI_INT");
 	gpio_direction_input (gMX6SL_WIFI_INT);
