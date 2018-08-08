@@ -892,39 +892,8 @@ static struct alc5640_pdata alc5640_config_data = {
 
 struct clk *ntx_extern_audio_root;
 
-static int alc5640_clk_enable(int enable)
-{
-	if (enable)
-		clk_enable(ntx_extern_audio_root);
-	else
-		clk_disable(ntx_extern_audio_root);
-
-	return 0;
-}
-
 static int mxc_alc5640_init(void)
 {
-	struct clk *pll4;
-	int rate;
-
-	ntx_extern_audio_root = clk_get(NULL, "extern_audio_clk");
-	if (IS_ERR(ntx_extern_audio_root)) {
-		pr_err("can't get ntx_extern_audio_root clock.\n");
-		return PTR_ERR(ntx_extern_audio_root);
-	}
-
-	pll4 = clk_get(NULL, "pll4");
-	if (IS_ERR(pll4)) {
-		pr_err("can't get pll4 clock.\n");
-		return PTR_ERR(pll4);
-	}
-
-	clk_set_parent(ntx_extern_audio_root, pll4);
-
-	rate = 4000000;
-	clk_set_rate(ntx_extern_audio_root, rate);
-
-	alc5640_data.sysclk = rate;
 	mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_MCLK__AUDMUX_AUDIO_CLK_OUT );
 	mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_RXD__AUDMUX_AUD3_RXD );
 	mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_TXC__AUDMUX_AUD3_TXC );
@@ -936,14 +905,13 @@ static int mxc_alc5640_init(void)
 
 static struct mxc_audio_platform_data alc5640_data = {
 	.ssi_num = 1,
-	.src_port = 2,
-	.ext_port = 3,
+	.src_port = 3,
+	.ext_port = 2,
 	.hp_gpio = IMX_GPIO_NR(3, 24),
 	.hp_active_low = 1,
 	.mic_gpio = -1,
 	.mic_active_low = 1,
 	.init = mxc_alc5640_init,
-	.clock_enable = alc5640_clk_enable,
 };
 
 #if 0

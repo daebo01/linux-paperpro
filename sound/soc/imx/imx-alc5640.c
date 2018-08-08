@@ -69,7 +69,7 @@ static int imx_aif1_startup(struct snd_pcm_substream *substream)
 	struct imx_priv *priv = &card_priv;
 	struct mxc_audio_platform_data *plat = priv->pdev->dev.platform_data;
 
-	if (!codec_dai->active)
+	if (!codec_dai->active && plat->clock_enable)
 		plat->clock_enable(1);
 
 	if (card_priv.amp_enable) 
@@ -86,7 +86,7 @@ static void imx_aif1_shutdown(struct snd_pcm_substream *substream)
 	struct mxc_audio_platform_data *plat = priv->pdev->dev.platform_data;
 
 	snd_soc_dai_digital_mute(codec_dai, 1);
-	if (!codec_dai->active)
+	if (!codec_dai->active && plat->clock_enable)
 		plat->clock_enable(0);
 
 	return;
@@ -104,6 +104,7 @@ static int imx_aif1_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 	u32 dai_format;
 	unsigned int pll_out;
+	unsigned int div_pm;
 
 	if (!priv->first_stream)
 		priv->first_stream = substream;
@@ -111,7 +112,7 @@ static int imx_aif1_hw_params(struct snd_pcm_substream *substream,
 		priv->second_stream = substream;
 
 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-		SND_SOC_DAIFMT_CBM_CFM;
+		SND_SOC_DAIFMT_CBS_CFS;
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
@@ -125,7 +126,7 @@ static int imx_aif1_hw_params(struct snd_pcm_substream *substream,
 				 2, 32);
 
 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_IF |
-		SND_SOC_DAIFMT_CBM_CFM;
+		SND_SOC_DAIFMT_CBS_CFS;
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
@@ -140,18 +141,27 @@ static int imx_aif1_hw_params(struct snd_pcm_substream *substream,
 	else
 		pll_out = sample_rate * 256 * 2;
 
-	ret = snd_soc_dai_set_pll(codec_dai, RT5640_PLL1_S_MCLK,
-				  RT5640_PLL1_S_MCLK, priv->sysclk,
-				  pll_out);
+	ret = snd_soc_dai_set_pll(codec_dai, RT5640_PLL1_S_BCLK1,
+				  RT5640_PLL1_S_BCLK1, sample_rate*64, pll_out);
 	if (ret < 0)
 		pr_err("Failed to start FLL: %d\n", ret);
-
 	ret = snd_soc_dai_set_sysclk(codec_dai, RT5640_SCLK_S_PLL1, pll_out, 0);
 	if (ret < 0) {
 		pr_err("Failed to set SYSCLK: %d\n", ret);
 		return ret;
 	}
-	
+
+	/* set the SSI system clock as input (unused) */
+	snd_soc_dai_set_sysclk(cpu_dai, IMX_SSP_SYS_CLK, 0, SND_SOC_CLOCK_IN);
+
+	div_pm = (112896000/64)/sample_rate;	// 903168000/8
+	div_pm = (div_pm&1)?((div_pm>>1)+1):div_pm>>1;
+	printk ("[%s-%d] sampling rate %d, DIV_PM %d\n", __func__, __LINE__, sample_rate, div_pm);
+
+	snd_soc_dai_set_clkdiv(cpu_dai, IMX_SSI_TX_DIV_PM, (div_pm-1));	
+	snd_soc_dai_set_clkdiv(cpu_dai, IMX_SSI_TX_DIV_2, 0);
+	snd_soc_dai_set_clkdiv(cpu_dai, IMX_SSI_TX_DIV_PSR, 0);
+
 	return 0;
 }
 
@@ -176,7 +186,6 @@ static int imx_alc5640_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	printk ("[%s-%d] ...\n", __func__, __LINE__);
 	snd_soc_dapm_new_controls(dapm, alc5640_dapm_widgets,
 				ARRAY_SIZE(alc5640_dapm_widgets));
 
@@ -295,7 +304,8 @@ static int __devexit imx_alc5640_remove(struct platform_device *pdev)
 
 	if (card_priv.amp_enable)
 		card_priv.amp_enable(0);
-	plat->clock_enable(0);
+	if (plat->clock_enable)
+		plat->clock_enable(0);
 
 	if (plat->finit)
 		plat->finit();
@@ -320,7 +330,6 @@ static int __init imx_asoc_init(void)
 {
 	int ret;
 
-	printk ("[alc5640 %s-%d] ...\n", __func__, __LINE__);
 	ret = platform_driver_register(&imx_alc5640_driver);
 	if (ret < 0)
 		goto exit;

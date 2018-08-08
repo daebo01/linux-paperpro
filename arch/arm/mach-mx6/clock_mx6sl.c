@@ -4098,7 +4098,7 @@ int __init mx6sl_clocks_init(unsigned long ckil, unsigned long osc,
 	pll6_enet_main_clk.disable(&pll6_enet_main_clk);
 
 	/* Initialize Audio and Video PLLs to valid frequency (650MHz). */
-	clk_set_rate(&pll4_audio_main_clk, 650000000);
+	clk_set_rate(&pll4_audio_main_clk, 903168000);
 	clk_set_rate(&pll5_video_main_clk, 650000000);
 
 	clk_set_parent(&clko_clk, &ipg_clk);
