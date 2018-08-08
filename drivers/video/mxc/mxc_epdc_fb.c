@@ -3530,8 +3530,8 @@ static void epdc_submit_work_func(struct work_struct *work)
 	}
 
 	/* Get rotation-adjusted coordinates */
-	adjust_coordinates(fb_data->epdc_fb_var.xres,
-		fb_data->epdc_fb_var.yres, fb_data->epdc_fb_var.rotate,
+	adjust_coordinates(ALIGN(fb_data->epdc_fb_var.xres, 8),
+		ALIGN(fb_data->epdc_fb_var.yres, 8), fb_data->epdc_fb_var.rotate,
 		&upd_data_list->update_desc->upd_data.update_region,
 		&adj_update_region);
 
@@ -3770,8 +3770,8 @@ static void epdc_submit_work_func(struct work_struct *work)
 		upd_region->height = actual_update_region.height;
 	}
 
-	adjust_coordinates(fb_data->epdc_fb_var.xres,
-		fb_data->epdc_fb_var.yres, fb_data->epdc_fb_var.rotate,
+	adjust_coordinates(ALIGN(fb_data->epdc_fb_var.xres, 8),
+		ALIGN(fb_data->epdc_fb_var.yres, 8), fb_data->epdc_fb_var.rotate,
 		upd_region,
 		&adj_update_region);
 
