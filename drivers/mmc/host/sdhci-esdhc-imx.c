@@ -802,8 +802,10 @@ void eschc_cd_enable (struct sdhci_host *host, bool enable)
 			 request_irq(gpio_to_irq(boarddata->cd_gpio), cd_irq,
 				 IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 				 mmc_hostname(host->mmc), host);
+			enable_irq_wake(gpio_to_irq(boarddata->cd_gpio));
 		}
 		else {
+			disable_irq_wake(gpio_to_irq(boarddata->cd_gpio));
 			free_irq(gpio_to_irq(boarddata->cd_gpio), host);
 		}
 	}
@@ -939,6 +941,7 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
 			dev_warn(mmc_dev(host->mmc), "request irq error\n");
 			goto no_card_detect_irq;
 		}
+		enable_irq_wake(gpio_to_irq(boarddata->cd_gpio));
 		}
 		imx_data->flags |= ESDHC_FLAG_GPIO_FOR_CD_WP;
 		/* Now we have a working card_detect again */
