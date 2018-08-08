@@ -3953,6 +3953,7 @@ void ntx_ite8951_power(int iIsON)
 {
 	if(14==gptHWCFG->m_val.bDisplayCtrl) {
 		gpio_direction_output (gMX6SL_ITE_PWR_EN, iIsON?1:0);
+		gpio_direction_output (gMX6SL_USB_HUB_RST, iIsON?0:1);
 	}
 }
 
@@ -4290,8 +4291,10 @@ static void ntx_gpio_init(void)
 			mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT2__GPIO_5_13);
 			gpio_request (gMX6SL_ITE_PWR_EN, "ITE_PWR_EN");
 			gpio_direction_output (gMX6SL_ITE_PWR_EN, 0);
+
+			mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT5__GPIO_5_9);
 			gpio_request (gMX6SL_USB_HUB_RST, "USB_HUB_RST");
-			gpio_direction_output (gMX6SL_USB_HUB_RST, 1);
+			gpio_direction_output (gMX6SL_USB_HUB_RST, 0);
 		}
 
  		gMX6SL_WIFI_3V3 = IMX_GPIO_NR(4, 29);
