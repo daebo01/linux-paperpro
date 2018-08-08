@@ -4239,6 +4239,10 @@ static void ntx_gpio_init(void)
 		}
 
 		if(10==gptHWCFG->m_val.bBattery) {
+			if (0x43 == gptHWCFG->m_val.bPCB) {
+				printk ("[%s-%d] force lp-tft flag for E70Q1x\n", __func__, __LINE__);
+				gptHWCFG->m_val.bEPD_Flags |= 0x02;
+			}
 			// 1200mA battery .
 			if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bEPD_Flags,1)) {
 				// LPTFT .
