@@ -1777,12 +1777,23 @@ static int calc_soc_by_voltageMethod(struct ricoh61x_battery_info *info)
 
 
 	if(10 == gptHWCFG->m_val.bBattery) {// 1200mAh battery
-		if(info->soca->Vbat_ave > 4100000) {
-			soc = 10000;
-		} else if(info->soca->Vbat_ave < 3750000) {
-			soc = 0;
-		} else {
-			soc = 10000 - ((4100000 - info->soca->Vbat_ave) / 35);
+		if (NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bEPD_Flags,1)) {	// 1200mA for lp-tft
+			if(info->soca->Vbat_ave > 4100000) {
+				soc = 10000;
+			} else if(info->soca->Vbat_ave < 3660000) {
+				soc = 0;
+			} else {
+				soc = 10000 - ((4100000 - info->soca->Vbat_ave) / 44);
+			}
+		}
+		else {
+			if(info->soca->Vbat_ave > 4100000) {
+				soc = 10000;
+			} else if(info->soca->Vbat_ave < 3750000) {
+				soc = 0;
+			} else {
+				soc = 10000 - ((4100000 - info->soca->Vbat_ave) / 35);
+			}
 		}
 	}
 	else {
