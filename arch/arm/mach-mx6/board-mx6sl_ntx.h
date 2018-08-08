@@ -171,8 +171,8 @@ static iomux_v3_cfg_t mx6sl_brd_ntx_sd4_gpio_pads[] = {
 };
 static iomux_v3_cfg_t mx6sl_brd_ntx_sd4_lan_pads[] = {
 	MX6SL_PAD_FEC_MDIO__FEC_MDIO,		// 
-	MX6SL_PAD_FEC_TX_CLK__FEC_TX_CLK,	// 
-	MX6SL_PAD_FEC_RX_ER__FEC_RX_ER,		// ESD_WP
+	MX6SL_PAD_FEC_TX_CLK__GPIO_4_21, /* Phy power enable */
+	MX6SL_PAD_FEC_RX_ER__GPIO_4_19,
 	MX6SL_PAD_FEC_CRS_DV__FEC_RX_DV,	// 
 	MX6SL_PAD_FEC_RXD1__FEC_RDATA_1,		// 
 	MX6SL_PAD_FEC_TXD0__FEC_TDATA_0,		// 

@@ -1814,7 +1814,6 @@ static inline void mx6_ntx_init_uart(void)
 	}
 }
 
-#if 0
 static int mx6sl_ntx_fec_phy_init(struct phy_device *phydev)
 {
 	int val;
@@ -1838,7 +1837,6 @@ static struct fec_platform_data fec_data __initdata = {
 	.init = mx6sl_ntx_fec_phy_init,
 	.phy = PHY_INTERFACE_MODE_RMII,
 };
-#endif
 
 static int epdc_get_pins(void)
 {
@@ -4999,13 +4997,16 @@ static void __init mx6_ntx_init(void)
 
 	mx6_ntx_init_uart();
 	imx6x_add_ram_console();
-	/* get enet tx reference clk from FEC_REF_CLK pad.
-	 * GPR1[14] = 0, GPR1[18:17] = 00
-	 */
-//	mxc_iomux_set_gpr_register(1, 14, 1, 0);
-//	mxc_iomux_set_gpr_register(1, 17, 2, 0);
 
-//	imx6_init_fec(fec_data);
+	if(0!=gptHWCFG->m_val.bLAN) {
+		/* get enet tx reference clk from FEC_REF_CLK pad.
+		 * GPR1[14] = 0, GPR1[18:17] = 00
+		 */
+		mxc_iomux_set_gpr_register(1, 14, 1, 0);
+		mxc_iomux_set_gpr_register(1, 17, 2, 0);
+
+		imx6_init_fec(fec_data);
+	}
 
 	//platform_device_register(&ntx_vmmc_reg_devices);
 
