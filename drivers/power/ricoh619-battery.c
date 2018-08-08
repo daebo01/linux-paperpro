@@ -4438,6 +4438,8 @@ static void charger_irq_work(struct work_struct *work)
 	//uint8_t adp_current_val = 0x0E;
 	//uint8_t usb_current_val = 0x04;
 	extern void led_red(int isOn);
+		extern void led_green(int isOn_G);
+		extern void led_blue(int isOn_B);
 	
 	printk(KERN_INFO "PMU:%s In\n", __func__);
 
@@ -4538,16 +4540,23 @@ static void charger_irq_work(struct work_struct *work)
 	}
 #endif
 
-
+	int charge_status_check = get_power_supply_status(info); //1: charged ; 2:no charge  4:
 	giRICOH619_DCIN = ricoh619_charger_detect();
-	if(9!=gptHWCFG->m_val.bCustomer) {
-		if(giRICOH619_DCIN) {
-			led_red(1);
-		}
+							if( charge_status_check == 4  && giRICOH619_DCIN ){
+								printk(KERN_INFO "charging_status01:%d\n",charge_status_check);
+						        led_red(0);
+						        led_green(1);
+							}else if ( charge_status_check != 4 && giRICOH619_DCIN ){
+								printk(KERN_INFO "charging_status02:%d\n",charge_status_check);
+								led_red(1);
+								led_green(1);
+							}
 		else {
 			led_red(0);
+			led_green(0);
+			led_blue(0);
 		}
-	}
+
 
 	_config_ricoh619_charger_params(info->dev,giRICOH619_DCIN);
 

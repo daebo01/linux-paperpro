@@ -1197,6 +1197,7 @@ static void acin_pg_chk( void )
 			// E60Q32/E60Q5X control charging led if not MP/RD mode . 
 			if(mxc_usb_plug_getstatus()) {
 				led_red(1);
+				led_green(1);
 			}
 			else {
 				led_red(0);

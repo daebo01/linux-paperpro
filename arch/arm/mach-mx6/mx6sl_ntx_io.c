@@ -616,70 +616,31 @@ int mxc_usb_plug_getstatus (void);
 
 void led_green (int isOn)
 {
-
-	if(0x03!=gptHWCFG->m_val.bUIConfig) {
-		// do not check charging status in MP/RD mode 
-		if(9!=gptHWCFG->m_val.bCustomer) {
-			if(gMX6SL_ON_LED==gMX6SL_CHG_LED&&mxc_usb_plug_getstatus()) {
-				// skip control charge led while charging .
-				return ;
-			}
-		}
-	}
-
-
 	if (isOn)
 		gpio_direction_output (gMX6SL_ON_LED,0);
 	else {
-		switch(gptHWCFG->m_val.bPCB) {
-		case 33: 
-			// E60Q2X .
-			gpio_direction_output (gMX6SL_ON_LED,1);
-		default :
 			gpio_direction_input (gMX6SL_ON_LED);
-		}
 	}
 }
 
 void led_blue (int isOn)
 {
 
-	switch(gptHWCFG->m_val.bLed) {
-		case 1:
 			if (isOn)
 				gpio_direction_output (gMX6SL_ACT_LED,0);
 			else
 				gpio_direction_input (gMX6SL_ACT_LED);
-			break;
-	}
+	
 }
 
 void led_red (int isOn) {
-	switch(gptHWCFG->m_val.bLed) {
-	//case 0:// Type1 .
-	case 1:// RGB
-	case 2:// RG
-	case 3:// RGH
-	case 4:// W
-	case 5:// G
-	case 7:// WH
+
 		if (isOn) {
 			gpio_direction_output (gMX6SL_CHG_LED,0);
 		}
 		else {
-			if(0x03!=gptHWCFG->m_val.bUIConfig) {
-				// do not check charging status in MP/RD mode 
-				if(9!=gptHWCFG->m_val.bCustomer) {
-					if(mxc_usb_plug_getstatus()) {
-						// skip control charge led while charging .
-						break ;
-					}
-				}
-			}
 			gpio_direction_input (gMX6SL_CHG_LED);
 		}
-		break;
-	}
 }
 
 
@@ -3646,6 +3607,7 @@ void ntx_gpio_resume (void)
 			// PCB > E60QKX && G==R LED .
 			if(mxc_usb_plug_getstatus()) {
 				led_red(1);
+				led_green(1);
 			}
 			else {
 				led_red(0);
