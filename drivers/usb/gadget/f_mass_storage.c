@@ -1430,7 +1430,7 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 	return len;
 }
 
-extern void send_usb_umount_uevent();
+//extern void send_usb_umount_uevent();
 
 static int do_start_stop(struct fsg_common *common)
 {
@@ -1490,7 +1490,8 @@ static int do_start_stop(struct fsg_common *common)
 	down_read(&common->filesem);
 
 	//Terry add 20140115 : When host eject UMS, pass uevent to userspace with host_eject=true.
-	send_usb_umount_uevent();
+//disable ums	by hearn.
+//send_usb_umount_uevent();
 
 	return common->ops && common->ops->post_eject
 		? min(0, common->ops->post_eject(common, curlun,

@@ -1279,13 +1279,13 @@ static int android_create_device(struct android_dev *dev)
 	}
 	return 0;
 }
-
-void send_usb_umount_uevent() {
-	char *host_eject[2]   = { "HOST_EJECT=TRUE", NULL };
-	char **uevent_envp = NULL;
-	uevent_envp = host_eject;
-	kobject_uevent_env(&_android_dev->dev->kobj, KOBJ_CHANGE,uevent_envp);
-}
+//hearn mark it.
+//void send_usb_umount_uevent() {
+//	char *host_eject[2]   = { "HOST_EJECT=TRUE", NULL };
+//	char **uevent_envp = NULL;
+//	uevent_envp = host_eject;
+//	kobject_uevent_env(&_android_dev->dev->kobj, KOBJ_CHANGE,uevent_envp);
+//}
 
 static int __init init(void)
 {
