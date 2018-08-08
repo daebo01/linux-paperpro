@@ -2830,6 +2830,14 @@ void ricoh_suspend_state_sync(void)
 
 		switch(gptHWCFG->m_val.bPCB) {
 		default :
+			if(61==gptHWCFG->m_val.bPCB && 6==gptHWCFG->m_val.bFL_PWM) {
+				//QKX
+				if(last_FL_duty) {
+					fl_current = fl_current_QKX[last_FL_duty-1];
+					printk("fl_current@%d=%d\n",last_FL_duty,fl_current);
+				}
+			}
+			else 
 			if(gptNTX_Percent_curr_tab) {
 				if(last_FL_duty) {
 					fl_current = gptNTX_Percent_curr_tab->dwCurrentA[last_FL_duty-1];
@@ -2848,15 +2856,8 @@ void ricoh_suspend_state_sync(void)
 					fl_current = iTemp;
 				}
 				else {
-					if(61==gptHWCFG->m_val.bPCB) {
-						//QKX
-						if(last_FL_duty) 
-							fl_current = fl_current_QKX[last_FL_duty-1];
-					}
-					else {
-						printk(KERN_WARNING"\n[WARNING]FL current not avalible(PCB=0x%x)\n\n",
-							gptHWCFG->m_val.bPCB);
-					}
+					printk(KERN_WARNING"\n[WARNING]FL current not avalible(PCB=0x%x)\n\n",
+						gptHWCFG->m_val.bPCB);
 				}
 				break;
 			}
