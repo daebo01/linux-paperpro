@@ -4727,8 +4727,8 @@ static void __init mx6_ntx_init(void)
 		// MSP430 @ I2C1
 		iMSP430_I2C_Chn = 0;//I2C1
 	}
-	else if(64==gptHWCFG->m_val.bPCB) {
-		// C31Q0X 
+	else if(64==gptHWCFG->m_val.bPCB || 72 ==gptHWCFG->m_val.bPCB) {
+		// C31Q0X | M31Q06
 		iMSP430_I2C_Chn = 1;//I2C2
 	}
 	else {
@@ -5342,9 +5342,16 @@ static void __init mx6_ntx_init(void)
 		/* Register charger chips */
 		platform_device_register(&ntx_charger);
 		if (13==gptHWCFG->m_val.bBattery) {
-			mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT7__GPIO_5_10_OUPUT);// msp430 power key.
-			gpio_request (IMX_GPIO_NR(5, 10), "msp430_pwr");
-			gpio_direction_output (IMX_GPIO_NR(5, 10), 0);
+			if (NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT6__GPIO_5_7);// msp430 power key.
+				gpio_request (IMX_GPIO_NR(5, 7), "msp430_pwr");
+				gpio_direction_output (IMX_GPIO_NR(5, 7), 0);
+			}
+			else {
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT7__GPIO_5_10_OUPUT);// msp430 power key.
+				gpio_request (IMX_GPIO_NR(5, 10), "msp430_pwr");
+				gpio_direction_output (IMX_GPIO_NR(5, 10), 0);
+			}
 		}
 	}
 

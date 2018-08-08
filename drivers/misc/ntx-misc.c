@@ -1916,13 +1916,13 @@ static void msp430_create_sys_attrs(void)
 }
 #endif//] CONFIG_MACH_MX6SL_NTX
 
-#define MSP430_PWR_SW	IMX_GPIO_NR(5, 10)
 static __devinit int msp430_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	int err = 0;
 	unsigned short wDevID;
 	int iDevIDRD_retry=0;
+	int	msp430_pwr_sw = IMX_GPIO_NR(5, 10);
 
 	if(!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 	{
@@ -1932,21 +1932,23 @@ static __devinit int msp430_i2c_probe(struct i2c_client *client,
 	gdwLastRTCReadTick = jiffies;
 	g_up_i2c_client = client;
 
-	if (13==gptHWCFG->m_val.bBattery)	// wait msp430 power on.
+	if (13==gptHWCFG->m_val.bBattery) {	// wait msp430 power on.
 		iDevIDRD_retry = 10;
+		if (NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) 
+			msp430_pwr_sw = IMX_GPIO_NR(5, 7);
+		gpio_direction_output (msp430_pwr_sw, 1);
+	}
 
 	do {
 		wDevID = msp430_deviceid();
 		printk ("[%s-%d] firmware version %X\n",__func__,__LINE__,wDevID);
 		if (0==wDevID && 13==gptHWCFG->m_val.bBattery) {
-			gpio_direction_output (MSP430_PWR_SW, 0);
+			gpio_direction_output (msp430_pwr_sw, 0);
 			msleep (1000);
-			gpio_direction_output (MSP430_PWR_SW, 1);
+			gpio_direction_output (msp430_pwr_sw, 1);
 		}
 	}while(0==wDevID && --iDevIDRD_retry>0);
 
-	if (13==gptHWCFG->m_val.bBattery) 
-		gpio_direction_output (MSP430_PWR_SW, 1);
 
 	if( 1==gptHWCFG->m_val.bPMIC && 0!=gptHWCFG->m_val.bFrontLight) {
 		// FL_3V3 for Ricoh PMIC & FL is ON .
