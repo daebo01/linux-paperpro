@@ -3603,6 +3603,7 @@ void ntx_gpio_resume (void)
 		mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_TXC__AUDMUX_AUD3_TXC );
 		mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_TXD__AUDMUX_AUD3_TXD );
 		mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_TXFS__AUDMUX_AUD3_TXFS );
+		mdelay(5);
 	}
 
 #ifdef CONFIG_ANDROID //[
