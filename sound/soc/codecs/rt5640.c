@@ -61,7 +61,7 @@ static struct rt5640_init_reg init_list[] = {
 #else
 	{RT5640_GEN_CTRL1	, 0x3701},//fa[12:13] = 1'b; fa[8~11]=1; fa[0]=1
 #endif
-	{RT5640_ADDA_CLK1	, 0x0014},//73[2] = 1'b
+	{RT5640_ADDA_CLK1	, 0x1010},//73[2] = 1'b
 	{RT5640_MICBIAS		, 0x3030},//93[5:4] = 11'b
 	{RT5640_CLS_D_OUT	, 0xa000},//8d[11] = 0'b
 	{RT5640_CLS_D_OVCD	, 0x0334},//8c[8] = 1'b
@@ -2720,7 +2720,8 @@ static int rt5640_hw_params(struct snd_pcm_substream *substream,
 		dev_err(codec->dev, "Unsupported frame size: %d\n", frame_size);
 		return -EINVAL;
 	}
-	bclk_ms = frame_size > 32 ? 1 : 0;
+	bclk_ms = frame_size >= 32 ? 1 : 0;	// force 64fs when 32bit to avoid noise in pause.
+
 	rt5640->bclk[dai->id] = rt5640->lrck[dai->id] * (32 << bclk_ms);
 
 	dev_dbg(dai->dev, "bclk is %dHz and lrck is %dHz\n",
