@@ -3636,6 +3636,7 @@ static void epdc_submit_work_func(struct work_struct *work)
 		mutex_unlock(&fb_data->queue_mutex);
 		mutex_lock(&fb_data->pxp_mutex);
 
+#if 0
 		if (do_aa_processing_v2_2_0((uint8_t *)(upd_data_list->virt_addr
 				+ upd_data_list->update_desc->epdc_offs),
 				&adj_update_region,
@@ -3644,6 +3645,15 @@ static void epdc_submit_work_func(struct work_struct *work)
 				fb_data->native_width,
 				fb_data->native_height))
 			dev_err(fb_data->dev," AAD algorithm is not available in this EPDC driver!\n");
+#else
+		if (do_aa_processing_v2_2_1(
+				(uint16_t *)fb_data->working_buffer_A_virt,
+				(uint16_t *)fb_data->working_buffer_B_virt,
+				&adj_update_region,
+				fb_data->native_width,
+				fb_data->native_height))
+				dev_err(fb_data->dev," AAD algorithm is not available in this EPDC driver!\n");
+#endif
 
 		mutex_unlock(&fb_data->pxp_mutex);
 		mutex_lock(&fb_data->queue_mutex);
@@ -3651,7 +3661,7 @@ static void epdc_submit_work_func(struct work_struct *work)
 		       /* collect the system time data */
 		       aa_time_stamp[1] = get_uSecs();
 
-			DBG_MSG (" --- AAl(v2.2.0) Algo Exec Time = %d\n", getTimeDiff(aa_time_stamp[0], aa_time_stamp[1]));
+			DBG_MSG (" --- AA(v2.2.1) Algo Exec Time = %d\n", getTimeDiff(aa_time_stamp[0], aa_time_stamp[1]));
 		flush_cache_all();
 		outer_flush_all();
 	} 
@@ -3669,6 +3679,7 @@ static void epdc_submit_work_func(struct work_struct *work)
 		mutex_unlock(&fb_data->queue_mutex);
 		mutex_lock(&fb_data->pxp_mutex);
 
+#if 0
 		if (do_aad_processing_v2_1_0((uint8_t *)(upd_data_list->virt_addr
 				+ upd_data_list->update_desc->epdc_offs),
 				&adj_update_region,
@@ -3677,6 +3688,15 @@ static void epdc_submit_work_func(struct work_struct *work)
 				fb_data->native_width,
 				fb_data->native_height))
 			dev_err(fb_data->dev," AA algorithm is not available in this EPDC driver!\n");
+#else 
+		if (do_aad_processing_v2_1_1(
+				(uint16_t *)fb_data->working_buffer_A_virt,
+				(uint16_t *)fb_data->working_buffer_B_virt,
+				&adj_update_region,
+				fb_data->native_width,
+				fb_data->native_height))
+			dev_err(fb_data->dev," AAD algorithm is not available in this EPDC driver!\n");
+#endif 
 
 		mutex_unlock(&fb_data->pxp_mutex);
 		mutex_lock(&fb_data->queue_mutex);
@@ -5300,7 +5320,7 @@ static void epdc_aa_work_func(struct work_struct *work)
                /* collect the system time data */
                aa_time_stamp[1] = get_uSecs();
 
-               dev_info (fb_data->dev, "AA(v2.2.1) Algo Exec Time = %d\n", getTimeDiff(aa_time_stamp[0], aa_time_stamp[1]));
+               dev_info (fb_data->dev, "AA-D(v2.2.1) Algo Exec Time = %d\n", getTimeDiff(aa_time_stamp[0], aa_time_stamp[1]));
 	} 
 	else if (upd_data_list->update_desc->upd_data.flags
 						& EPDC_FLAG_USE_AAD) {
