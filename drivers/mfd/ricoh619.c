@@ -758,6 +758,25 @@ static void print_regs(const char *header, struct seq_file *s,
 	seq_printf(s, "------------------\n");
 }
 
+static void print_bank1_regs(const char *header, struct seq_file *s,
+		struct i2c_client *client, int start_offset,
+		int end_offset)
+{
+	uint8_t reg_val;
+	int i;
+	int ret;
+
+	ret = set_bank_ricoh61x(&client->dev, 1);
+	seq_printf(s, "bank1\n");
+	for (i = start_offset; i <= end_offset; ++i) {
+		ret = __ricoh61x_read(client, i, &reg_val);
+		if (ret >= 0)
+			seq_printf(s, "Reg 0x%02x Value 0x%02x\n", i, reg_val);
+	}
+	seq_printf(s, "------------------\n");
+	ret = set_bank_ricoh61x(&client->dev, 0);
+}
+
 static int dbg_ricoh_show(struct seq_file *s, void *unused)
 {
 	struct ricoh61x *ricoh = s->private;
@@ -777,6 +796,7 @@ static int dbg_ricoh_show(struct seq_file *s, void *unused)
 	print_regs("OPT   Regs",		s, client, 0xB0, 0xB1);
 	print_regs("CHG   Regs",		s, client, 0xB2, 0xDF);
 	print_regs("FUEL  Regs",		s, client, 0xE0, 0xFC);
+	print_bank1_regs("FUEL  Regs",		s, client, 0xBC, 0xFF);
 	return 0;
 }
 
@@ -926,6 +946,12 @@ static int ricoh61x_i2c_suspend(struct i2c_client *client, pm_message_t state)
 	int ret;
 
 	ricoh61x->iIsSuspending = 1;
+
+	ret = __ricoh61x_read(client, RICOH61x_INT_IR_SYS, &reg_val);
+	if (reg_val & 0x01) { /* If PWR_KEY wakeup */
+		/* Clear PWR_KEY IRQ */
+		__ricoh61x_write(client, RICOH61x_INT_IR_SYS, reg_val & 0xFE);
+	}
 
   /* Disable rtc Interrupt */
 	ret = __ricoh61x_read(ricoh61x_i2c_client,

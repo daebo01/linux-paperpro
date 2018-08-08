@@ -86,8 +86,7 @@ static void usb_charger_work(struct work_struct *data)
 		if (SDP_PC_CHARGER != dcd_result)
 			msleep (500);
 		
-//		if ((SDP_PC_CHARGER == dcd_result) && (charger->dp_pullup))
-		if (charger->dp_pullup)
+		if ((SDP_PC_CHARGER == dcd_result) && (charger->dp_pullup))
 			charger->dp_pullup(true);
 	}
 #else
