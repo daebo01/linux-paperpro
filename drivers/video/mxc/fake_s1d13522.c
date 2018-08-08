@@ -2682,13 +2682,7 @@ int32_t fake_s1d13522_ioctl(unsigned int cmd,unsigned long arg,EPDFB_DC *pDC)
 				unsigned long dwFBSize;
 
 				pt = (ST_IMAGE_PGM *)pDC->pfnGetRealFrameBufEx(&dwFBSize);
-				if(dwFBSize<sizeof(*pt)) {
-					pt = 0;
-				} 
-				else
-				{
-					pt=((unsigned char *)pt)+dwFBSize;
-				}
+				pt = ((unsigned char *)pt)+dwFBSize;
 			}
 			else {
 				pt = kmalloc(sizeof(*pt),GFP_KERNEL);
