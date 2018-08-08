@@ -394,12 +394,15 @@ EXPORT_SYMBOL_GPL(up_set_alarm);
 
 unsigned short msp430_deviceid(void)
 {
-	static unsigned short gw_uP_version;
+	static unsigned short gw_uP_version = 0;
+	int iChk;
 
 	if(0==gw_uP_version) {
-		gw_uP_version = up_safe_read_reg(0);
+		iChk = up_safe_read_reg(0);
+		if(iChk>=0) {
+			gw_uP_version = (unsigned short)(iChk);
+		}
 	}
-
 	return gw_uP_version;
 }
 
@@ -1928,7 +1931,6 @@ static __devinit int msp430_i2c_probe(struct i2c_client *client,
   	}
 	gdwLastRTCReadTick = jiffies;
 	g_up_i2c_client = client;
-	printk ("[%s-%d] firmware version %X\n",__func__,__LINE__,msp430_deviceid());
 
 	if (13==gptHWCFG->m_val.bBattery)	// wait msp430 power on.
 		iDevIDRD_retry = 10;
