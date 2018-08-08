@@ -2968,6 +2968,10 @@ void ricoh_suspend_state_sync(void)
 		sus_current = 5180;
 		hiber_current = 928;
 		break;
+	case 67://E70Q1X
+		sus_current = 4970;
+		hiber_current = 955;
+		break;
 	case 68://E60QPX
 		sus_current = 2646;
 		hiber_current = 772;
