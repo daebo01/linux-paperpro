@@ -326,8 +326,7 @@ rtl8188f_InitHalDm(
 
 	Update_ODM_ComInfo_8188f(Adapter);
 
-	if (Adapter->registrypriv.mp_mode == 0)
-		ODM_DMInit(pDM_Odm);
+	ODM_DMInit(pDM_Odm);
 
 }
 

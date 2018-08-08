@@ -429,6 +429,7 @@ u32 Hal_ReadMACAddrFromFile(PADAPTER padapter, u8 *mac_addr);
 int check_phy_efuse_tx_power_info_valid(PADAPTER padapter);
 int hal_efuse_macaddr_offset(_adapter *adapter);
 int Hal_GetPhyEfuseMACAddr(PADAPTER padapter, u8 *mac_addr);
+void rtw_dump_cur_efuse(PADAPTER padapter);
 
 #ifdef CONFIG_RF_GAIN_OFFSET
 void rtw_bb_rf_gain_offset(_adapter *padapter);
@@ -520,7 +521,7 @@ static inline u32 rtw_phydm_ability_get(_adapter *adapter)
 
 #ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
 extern char *rtw_phy_file_path;
-extern char file_path[PATH_LENGTH_MAX];
+extern char rtw_phy_para_file_path[PATH_LENGTH_MAX];
 #define GetLineFromBuffer(buffer)   strsep(&buffer, "\r\n")
 #endif
 

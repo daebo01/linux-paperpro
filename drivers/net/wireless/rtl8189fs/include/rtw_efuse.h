@@ -211,7 +211,7 @@ u8 mac_hidden_wl_func_to_hal_wl_func(u8 func);
 
 #ifdef PLATFORM_LINUX
 #ifdef CONFIG_EFUSE_CONFIG_FILE
-u32 rtw_read_efuse_from_file(const char *path, u8 *buf);
+u32 rtw_read_efuse_from_file(const char *path, u8 *buf, int map_size);
 u32 rtw_read_macaddr_from_file(const char *path, u8 *buf);
 #endif /* CONFIG_EFUSE_CONFIG_FILE */
 #endif /* PLATFORM_LINUX */

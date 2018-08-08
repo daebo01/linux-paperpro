@@ -398,6 +398,10 @@ static VOID PHY_SetRFPathSwitch_default(
 
 void mpt_InitHWConfig(PADAPTER Adapter)
 {
+	PHAL_DATA_TYPE hal;
+
+	hal = GET_HAL_DATA(Adapter);
+
 	if (IS_HARDWARE_TYPE_8723B(Adapter)) {
 		// TODO: <20130114, Kordan> The following setting is only for DPDT and Fixed board type.
 		// TODO:  A better solution is configure it according EFUSE during the run-time. 
@@ -435,6 +439,14 @@ void mpt_InitHWConfig(PADAPTER Adapter)
 	{
 		PlatformEFIOWrite2Byte(Adapter, REG_RXFLTMAP1_8822B, 0x2000);
 	}*/
+#ifdef CONFIG_RTL8188F
+	else if (IS_HARDWARE_TYPE_8188F(Adapter)) {
+		if (IS_A_CUT(hal->VersionID) || (IS_B_CUT(hal->VersionID) && hal->VersionID.irv == 0xF)) {
+			RTW_INFO("%s() Active large power detection\n", __func__);
+			phy_active_large_power_detection_8188f(&hal->odmpriv);
+		}
+	}
+#endif
 }
 
 #ifdef CONFIG_RTL8188E
@@ -668,6 +680,16 @@ s32 SetPowerTracking(PADAPTER padapter, u8 enable)
 void GetPowerTracking(PADAPTER padapter, u8 *enable)
 {
 	hal_mpt_GetPowerTracking(padapter, enable);
+}
+
+void rtw_mp_trigger_iqk(PADAPTER padapter)
+{
+	PHY_IQCalibrate(padapter, _FALSE);
+}
+
+void rtw_mp_trigger_lck(PADAPTER padapter)
+{
+	PHY_LCCalibrate(padapter);
 }
 
 static void disable_dm(PADAPTER padapter)
@@ -1037,11 +1059,6 @@ static void MPT_CCKTxPowerAdjust(PADAPTER Adapter, BOOLEAN bInCH14)
 {
 	hal_mpt_CCKTxPowerAdjust(Adapter, bInCH14);
 }
-
-static void MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
-{
-	hal_mpt_CCKTxPowerAdjustbyIndex(pAdapter, beven);
-	}
 
 /*---------------------------hal\rtl8192c\MPT_HelperFunc.c---------------------------*/
 
@@ -2682,46 +2699,16 @@ ULONG mpt_ProQueryCalTxPower(
 	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(pAdapter);
 	PMPT_CONTEXT		pMptCtx = &(pAdapter->mppriv.MptCtx);
 
-	ULONG			TxPower = 1, PwrGroup=0, PowerDiffByRate=0;	
-	u1Byte			limit = 0, rate = 0;
+	ULONG			TxPower = 1;
+	u1Byte			rate = 0;
+	struct txpwr_idx_comp tic;
 	u8 mgn_rate = MptToMgntRate(pMptCtx->MptRateIndex);
 
-	#if defined(CONFIG_RTL8188E)
-	if (IS_HARDWARE_TYPE_8188E(pAdapter))
-		TxPower = PHY_GetTxPowerIndex_8188E(pAdapter, RfPath, mgn_rate, pHalData->CurrentChannelBW, pHalData->CurrentChannel);
-	#endif
+	TxPower = rtw_hal_get_tx_power_index(pAdapter, RfPath, mgn_rate, pHalData->CurrentChannelBW, pHalData->CurrentChannel, &tic);
 
-	#if defined(CONFIG_RTL8723B)	
-	if (IS_HARDWARE_TYPE_8723B(pAdapter))
-		TxPower = PHY_GetTxPowerIndex_8723B(pAdapter, RfPath, mgn_rate, pHalData->CurrentChannelBW, pHalData->CurrentChannel);
-	#endif
-
-	#if defined(CONFIG_RTL8192E)
-	if (IS_HARDWARE_TYPE_8192E(pAdapter))
-		TxPower = PHY_GetTxPowerIndex_8192E(pAdapter, RfPath, mgn_rate, pHalData->CurrentChannelBW, pHalData->CurrentChannel);
-	#endif
-
-	#if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A)
-	if (IS_HARDWARE_TYPE_JAGUAR(pAdapter))
-		TxPower = PHY_GetTxPowerIndex_8812A(pAdapter, RfPath, mgn_rate, pHalData->CurrentChannelBW, pHalData->CurrentChannel);
-	#endif
-
-	#if defined(CONFIG_RTL8814A)
-	if (IS_HARDWARE_TYPE_8814A(pAdapter))
-		TxPower = PHY_GetTxPowerIndex_8814A(pAdapter, RfPath, mgn_rate, pHalData->CurrentChannelBW, pHalData->CurrentChannel);
-	#endif
-	#if defined(CONFIG_RTL8703B)
-	if (IS_HARDWARE_TYPE_8703B(pAdapter))
-		TxPower = PHY_GetTxPowerIndex_8703B(pAdapter, RfPath, mgn_rate, pHalData->CurrentChannelBW, pHalData->CurrentChannel);
-	#endif
-
-	#if defined(CONFIG_RTL8188F)
-	if (IS_HARDWARE_TYPE_8188F(pAdapter))
-		TxPower = PHY_GetTxPowerIndex_8188F(pAdapter, RfPath, mgn_rate, pHalData->CurrentChannelBW, pHalData->CurrentChannel);
-	#endif
-
-	DBG_8192C("txPower=%d ,CurrentChannelBW=%d ,CurrentChannel=%d ,rate =%d\n",
-			  TxPower, pHalData->CurrentChannelBW, pHalData->CurrentChannel, mgn_rate);
+	RTW_INFO("bw=%d, ch=%d, rate=%d, txPower:%u = %u + (%d=%d:%d) + (%d) + (%d)\n",
+		pHalData->CurrentChannelBW, pHalData->CurrentChannel, mgn_rate
+		, TxPower, tic.base, (tic.by_rate > tic.limit ? tic.limit : tic.by_rate), tic.by_rate, tic.limit, tic.tpt, tic.ebias);
 
 	pAdapter->mppriv.txpoweridx = (u8)TxPower;
 	pMptCtx->TxPwrLevel[ODM_RF_PATH_A] = (u8)TxPower;

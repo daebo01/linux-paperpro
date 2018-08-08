@@ -10808,7 +10808,6 @@ void start_create_ibss(_adapter* padapter)
 		rtw_hal_set_hwreg(padapter , HW_VAR_DO_IQK , &doiqk);
 
 		//switch channel
-		//SelectChannel(padapter, pmlmeext->cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE);
 		set_channel_bwmode(padapter, pmlmeext->cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, CHANNEL_WIDTH_20);
 
 		doiqk = _FALSE;
@@ -12429,12 +12428,19 @@ void linked_status_chk(_adapter *padapter, u8 from_timer)
 
 			#if defined(CONFIG_ACTIVE_KEEP_ALIVE_CHECK) && !defined(CONFIG_LPS_LCLK_WD_TIMER)
 			if (pmlmeext->active_keep_alive_check && (rx_chk == _FAIL || tx_chk == _FAIL)) {
-				u8 backup_oper_channel=0;
+				u8 backup_ch = 0, backup_bw, backup_offset;
+				u8 union_ch = 0, union_bw, union_offset;
+
+				if (!rtw_get_ch_setting_union(padapter, &union_ch, &union_bw, &union_offset)
+					|| pmlmeext->cur_channel != union_ch)
+						goto bypass_active_keep_alive;
 
 				/* switch to correct channel of current network  before issue keep-alive frames */
 				if (rtw_get_oper_ch(padapter) != pmlmeext->cur_channel) {
-					backup_oper_channel = rtw_get_oper_ch(padapter);
-					SelectChannel(padapter, pmlmeext->cur_channel);
+					backup_ch = rtw_get_oper_ch(padapter);
+					backup_bw = rtw_get_oper_bw(padapter);
+					backup_offset = rtw_get_oper_choffset(padapter);
+					set_channel_bwmode(padapter, union_ch, union_offset, union_bw);
 				}
 
 				if (rx_chk != _SUCCESS)
@@ -12448,9 +12454,11 @@ void linked_status_chk(_adapter *padapter, u8 from_timer)
 				}
 
 				/* back to the original operation channel */
-				if(backup_oper_channel>0)
-					SelectChannel(padapter, backup_oper_channel);
+				if (backup_ch > 0)
+					set_channel_bwmode(padapter, backup_ch, backup_offset, backup_bw);
 
+bypass_active_keep_alive:
+				;
 			}
 			else
 			#endif /* CONFIG_ACTIVE_KEEP_ALIVE_CHECK */
@@ -13445,6 +13453,8 @@ static void sitesurvey_res_reset(_adapter *adapter, struct sitesurvey_parm *parm
 
 	ss->bss_cnt = 0;
 	ss->channel_idx = 0;
+	ss->igi_scan = 0;
+	ss->igi_before_scan = 0;
 #ifdef CONFIG_SCAN_BACKOP
 	ss->scan_cnt = 0;
 #endif
@@ -13763,30 +13773,56 @@ u8 sitesurvey_ps_annc(struct dvobj_priv *dvobj, bool ps)
 	return ps_anc;
 }
 
-void sitesurvey_set_igi(_adapter *adapter, bool enter)
+void sitesurvey_set_igi(_adapter *adapter)
 {
+	struct mlme_ext_priv *mlmeext = &adapter->mlmeextpriv;
+	struct ss_res *ss = &mlmeext->sitesurvey_res;
 	u8 igi;
 #ifdef CONFIG_P2P
 	struct wifidirect_info *pwdinfo = &adapter->wdinfo;
 #endif
 
-	if (enter) {
-#ifdef CONFIG_P2P
-#ifdef CONFIG_IOCTL_CFG80211
+	switch (mlmeext_scan_state(mlmeext)) {
+	case SCAN_ENTER:
+		#ifdef CONFIG_P2P
+		#ifdef CONFIG_IOCTL_CFG80211
 		if (adapter_wdev_data(adapter)->p2p_enabled == _TRUE && pwdinfo->driver_interface == DRIVER_CFG80211)
 			igi = 0x30;
 		else
-#endif /* CONFIG_IOCTL_CFG80211 */
+		#endif /* CONFIG_IOCTL_CFG80211 */
 		if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
 			igi = 0x28;
 		else
-#endif /* CONFIG_P2P */
+		#endif /* CONFIG_P2P */
 			igi = 0x1e;
-	} else {
-			igi = 0xff; /* restore RX GAIN */
-	}
 
-	rtw_hal_set_odm_var(adapter, HAL_ODM_INITIAL_GAIN, &igi, _FALSE);
+		/* record IGI status */
+		ss->igi_scan = igi;
+		rtw_hal_get_odm_var(adapter, HAL_ODM_INITIAL_GAIN, &ss->igi_before_scan, NULL);
+
+		/* disable DIG and set IGI for scan */
+		rtw_hal_set_odm_var(adapter, HAL_ODM_INITIAL_GAIN, &igi, _FALSE);
+		break;
+	case SCAN_COMPLETE:
+	case SCAN_TO_P2P_LISTEN:
+		/* enable DIG and restore IGI */
+		igi = 0xff;
+		rtw_hal_set_odm_var(adapter, HAL_ODM_INITIAL_GAIN, &igi, _FALSE);
+		break;
+#ifdef CONFIG_SCAN_BACKOP
+	case SCAN_BACKING_OP:
+		/* write IGI for op channel when DIG is not enabled */
+		ODM_Write_DIG(GET_ODM(adapter), ss->igi_before_scan);
+		break;
+	case SCAN_LEAVE_OP:
+		/* write IGI for scan when DIG is not enabled */
+		ODM_Write_DIG(GET_ODM(adapter), ss->igi_scan);
+		break;
+#endif /* CONFIG_SCAN_BACKOP */
+	default:
+		rtw_warn_on(1);
+		break;
+	}
 }
 
 u8 sitesurvey_cmd_hdl(_adapter *padapter, u8 *pbuf)
@@ -13862,11 +13898,11 @@ operation_by_state:
 		* HW register and DM setting for enter scan
 		*/
 
-		/* config the initial gain under scanning */
-		sitesurvey_set_igi(padapter, 1);
-		
-		/* disable dynamic functions, such as high power, DIG */
 		rtw_phydm_ability_backup(padapter);
+
+		sitesurvey_set_igi(padapter);
+
+		/* config dynamic functions for off channel */
 		rtw_phydm_func_for_offchannel(padapter);
 		
 		/* set MSR to no link state */
@@ -13991,7 +14027,7 @@ operation_by_state:
 		rtw_hal_set_hwreg(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
 
 		if (mlmeext_chk_scan_backop_flags(pmlmeext, SS_BACKOP_PS_ANNC)) {
-			sitesurvey_set_igi(padapter, 0);
+			sitesurvey_set_igi(padapter);
 			sitesurvey_ps_annc(adapter_to_dvobj(padapter), 0);
 		}
 
@@ -14049,10 +14085,8 @@ operation_by_state:
 		* HW register and DM setting for enter scan
 		*/
 
-		if (mlmeext_chk_scan_backop_flags(pmlmeext, SS_BACKOP_PS_ANNC)) {
-			/* config the initial gain under scanning */
-			sitesurvey_set_igi(padapter, 1);
-		}
+		if (mlmeext_chk_scan_backop_flags(pmlmeext, SS_BACKOP_PS_ANNC))
+			sitesurvey_set_igi(padapter);
 
 		/* set MSR to no link state */
 		Set_MSR(padapter, _HW_STATE_NOLINK_);
@@ -14092,7 +14126,7 @@ operation_by_state:
 		/* turn on phy-dynamic functions */
 		rtw_phydm_ability_restore(padapter);
 
-		sitesurvey_set_igi(padapter, 0);
+		sitesurvey_set_igi(padapter);
 
 		mlmeext_set_scan_state(pmlmeext, SCAN_P2P_LISTEN);
 		_set_timer(&pwdinfo->find_phase_timer, (u32)((u32)pwdinfo->listen_dwell * 100));
@@ -14133,7 +14167,7 @@ operation_by_state:
 		/* turn on phy-dynamic functions */
 		rtw_phydm_ability_restore(padapter);
 
-		sitesurvey_set_igi(padapter, 0);
+		sitesurvey_set_igi(padapter);
 
 		sitesurvey_ps_annc(adapter_to_dvobj(padapter), 0);
 
@@ -15058,6 +15092,28 @@ inline void rtw_dev_iface_status_no_self(_adapter *adapter, u8 *sta_num, u8 *ld_
 	return _rtw_dev_iface_status(adapter, sta_num, ld_sta_num, lg_sta_num, ap_num, ld_ap_num, 0);
 }
 
+u8 rtw_mp_mode_check(_adapter *padapter)
+{
+#ifdef CONFIG_MP_INCLUDED
+#ifdef CONFIG_CONCURRENT_MODE
+	int i;
+	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
+	_adapter *iface = NULL;
+
+	for (i = 0; i < dvobj->iface_nums; i++) {
+		iface = dvobj->padapters[i];
+
+		if ((iface) && (iface->registrypriv.mp_mode == 1))
+			return _TRUE;
+	}
+#else
+	if (padapter->registrypriv.mp_mode == 1)
+		return _TRUE;
+#endif
+#endif /* CONFIG_MP_INCLUDED */
+	return _FALSE;
+}
+
 u8 set_ch_hdl(_adapter *padapter, u8 *pbuf)
 {
 	struct set_ch_parm *set_ch_parm;
@@ -15146,7 +15202,7 @@ u8 set_csa_hdl(_adapter *padapter, unsigned char *pbuf)
 	rtw_hal_set_hwreg(padapter, HW_VAR_TXPAUSE, &sval8);
 
 	DBG_871X("DFS detected! Swiching channel to %d!\n", new_ch_no);
-	SelectChannel(padapter, new_ch_no);
+	set_channel_bwmode(padapter, new_ch_no, HAL_PRIME_CHNL_OFFSET_DONT_CARE, CHANNEL_WIDTH_20);
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_TXPAUSE, &gval8);
 
@@ -15268,7 +15324,7 @@ u8 tdls_hdl(_adapter *padapter, unsigned char *pbuf)
 		rtw_msleep_os(resp_sleep);
 
 		/* If we receive TDLS_CH_SW_REQ at off channel which it's target is AP's channel */
-		/* then we just SelectChannel to AP's channel*/
+		/* then we just switch to AP's channel*/
 		if (padapter->mlmeextpriv.cur_channel == pchsw_info->off_ch_num) {
 			SelectChannel(padapter, padapter->mlmeextpriv.cur_channel);
 			issue_nulldata(padapter, NULL, 0, 0, 0);

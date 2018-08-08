@@ -2997,22 +2997,6 @@ void rtw_dynamic_check_timer_handlder(_adapter *adapter)
 	if (RTW_CANNOT_RUN(adapter))
 		return;
 
-	
-#ifdef CONFIG_CONCURRENT_MODE
-	if(pbuddy_adapter)
-	{
-		if(adapter->net_closed == _TRUE && pbuddy_adapter->net_closed == _TRUE)
-		{
-			return;
-		}		
-	}
-	else
-#endif //CONFIG_CONCURRENT_MODE
-	if(adapter->net_closed == _TRUE)
-	{
-		return;
-	}	
-
 #ifdef CONFIG_BT_COEXIST
 	if (is_primary_adapter(adapter)) {
 		if (GET_HAL_DATA(adapter)->EEPROMBluetoothCoexist == 1)

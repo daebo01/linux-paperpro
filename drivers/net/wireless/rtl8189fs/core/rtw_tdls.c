@@ -3086,11 +3086,6 @@ void rtw_free_tdls_timer(struct sta_info *psta)
 	_cancel_timer_ex(&psta->pti_timer);
 }
 
-u8	update_sgi_tdls(_adapter *padapter, struct sta_info *psta)
-{
-	return query_ra_short_GI(psta);
-}
-
 u32 update_mask_tdls(_adapter *padapter, struct sta_info *psta)
 {
 	unsigned char sta_band = 0;

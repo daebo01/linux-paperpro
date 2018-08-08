@@ -5,6 +5,6 @@
   You do not need to fill up the version.h anymore, 
   only the maintenance supervisor fills it before formal release.
 */
-#define	RELEASE_DATE_8188F		20160330
-#define	COMMIT_BY_8188F			"BB_DAVID"
-#define	RELEASE_VERSION_8188F		27
+#define	RELEASE_DATE_8188F		20170601
+#define	COMMIT_BY_8188F			"BB_David"
+#define	RELEASE_VERSION_8188F		36

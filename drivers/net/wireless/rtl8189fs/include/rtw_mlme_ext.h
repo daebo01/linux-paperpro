@@ -347,6 +347,8 @@ struct ss_res {
 	u16 scan_ch_ms;
 	u8 rx_ampdu_accept;
 	u8 rx_ampdu_size;
+	u8 igi_scan;
+	u8 igi_before_scan; /* used for restoring IGI value without enable DIG & FA_CNT */
 #ifdef CONFIG_SCAN_BACKOP
 	u8 backop_flags_sta; /* policy for station mode*/
 	u8 backop_flags_ap; /* policy for ap mode */
@@ -724,8 +726,6 @@ u32 rtw_get_on_cur_ch_time(_adapter *adapter);
 u8 rtw_get_offset_by_ch(u8 channel);
 
 void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char channel_offset, unsigned short bwmode);
-void SelectChannel(_adapter *padapter, unsigned char channel);
-void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_offset);
 
 unsigned int decide_wait_for_beacon_timeout(unsigned int bcn_interval);
 
@@ -836,6 +836,10 @@ void rtw_alloc_macid(_adapter *padapter, struct sta_info *psta);
 void rtw_release_macid(_adapter *padapter, struct sta_info *psta);
 u8 rtw_search_max_mac_id(_adapter *padapter);
 void rtw_macid_ctl_set_h2c_msr(struct macid_ctl_t *macid_ctl, u8 id, u8 h2c_msr);
+void rtw_macid_ctl_set_bw(struct macid_ctl_t *macid_ctl, u8 id, u8 bw);
+void rtw_macid_ctl_set_vht_en(struct macid_ctl_t *macid_ctl, u8 id, u8 en);
+void rtw_macid_ctl_set_rate_bmp0(struct macid_ctl_t *macid_ctl, u8 id, u32 bmp);
+void rtw_macid_ctl_set_rate_bmp1(struct macid_ctl_t *macid_ctl, u8 id, u32 bmp);
 void rtw_macid_ctl_init(struct macid_ctl_t *macid_ctl);
 void rtw_macid_ctl_deinit(struct macid_ctl_t *macid_ctl);
 
@@ -1003,6 +1007,8 @@ void rtw_dev_iface_status(_adapter *adapter, u8 *sta_num, u8 *ld_sta_num, u8 *lg
 	, u8 *ap_num, u8 *ld_ap_num);
 void rtw_dev_iface_status_no_self(_adapter *adapter, u8 *sta_num, u8 *ld_sta_num, u8 *lg_sta_num
 	, u8 *ap_num, u8 *ld_ap_num);
+
+u8 rtw_mp_mode_check(_adapter *padapter);
 
 struct cmd_hdl {
 	uint	parmsize;

@@ -598,12 +598,20 @@ void	expire_timeout_chk(_adapter *padapter)
 #ifdef CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 if (chk_alive_num) {
 
-	u8 backup_oper_channel=0;
+	u8 backup_ch = 0, backup_bw, backup_offset;
+	u8 union_ch = 0, union_bw, union_offset;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+
+	if (!rtw_get_ch_setting_union(padapter, &union_ch, &union_bw, &union_offset)
+		|| pmlmeext->cur_channel != union_ch)
+		goto bypass_active_keep_alive;
+
 	/* switch to correct channel of current network  before issue keep-alive frames */
 	if (rtw_get_oper_ch(padapter) != pmlmeext->cur_channel) {
-		backup_oper_channel = rtw_get_oper_ch(padapter);
-		SelectChannel(padapter, pmlmeext->cur_channel);
+		backup_ch = rtw_get_oper_ch(padapter);
+		backup_bw = rtw_get_oper_bw(padapter);
+		backup_offset = rtw_get_oper_choffset(padapter);
+		set_channel_bwmode(padapter, union_ch, union_offset, union_bw);
 	}
 
 	/* issue null data to check sta alive*/
@@ -652,8 +660,12 @@ if (chk_alive_num) {
 
 	}
 
-	if (backup_oper_channel>0) /* back to the original operation channel */
-		SelectChannel(padapter, backup_oper_channel);
+	/* back to the original operation channel */
+	if (backup_ch > 0)
+		set_channel_bwmode(padapter, backup_ch, backup_offset, backup_bw);
+
+bypass_active_keep_alive:
+	;
 }
 #endif /* CONFIG_ACTIVE_KEEP_ALIVE_CHECK */
 
@@ -669,6 +681,7 @@ void add_RATid(_adapter *padapter, struct sta_info *psta, u8 rssi_level)
 	struct ht_priv	*psta_ht = NULL;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	WLAN_BSSID_EX *pcur_network = (WLAN_BSSID_EX *)&pmlmepriv->cur_network.network;
+	u8 bw;
 
 #ifdef CONFIG_80211N_HT
 	if(psta)
@@ -802,7 +815,8 @@ void add_RATid(_adapter *padapter, struct sta_info *psta, u8 rssi_level)
 	rtw_hal_update_sta_rate_mask(padapter, psta);
 	tx_ra_bitmap = psta->ra_mask;
 
-	shortGIrate = query_ra_short_GI(psta);
+	bw = rtw_get_tx_bw_mode(padapter, psta);
+	shortGIrate = query_ra_short_GI(psta, bw);
 
 	if ( pcur_network->Configuration.DSConfig > 14 ) {
 		

@@ -368,6 +368,7 @@ int rtw_mp_start(struct net_device *dev,
 	PADAPTER padapter = rtw_netdev_priv(dev);
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct hal_ops *pHalFunc = &padapter->HalFunc;
+	u8 rfreg0;
 
 	rtw_pm_set_ips(padapter, IPS_NONE);
 	LeaveAllPowerSaveMode(padapter);
@@ -408,6 +409,7 @@ int rtw_mp_start(struct net_device *dev,
 	rtw_write8(padapter, 0x66, 0x27); /*Open BT uart Log*/
 	rtw_write8(padapter, 0xc50, 0x20); /*for RX init Gain*/
 #endif
+
 	ODM_Write_DIG(&pHalData->odmpriv, 0x20);
 
 	return 0;
@@ -1297,6 +1299,27 @@ int rtw_mp_PwrCtlDM(struct net_device *dev,
 	return 0;
 }
 
+int rtw_mp_iqk(struct net_device *dev,
+		 struct iw_request_info *info,
+		 struct iw_point *wrqu, char *extra)
+{
+	PADAPTER padapter = rtw_netdev_priv(dev);
+
+	rtw_mp_trigger_iqk(padapter);
+
+	return 0;
+}
+
+int rtw_mp_lck(struct net_device *dev,
+		 struct iw_request_info *info,
+		 struct iw_point *wrqu, char *extra)
+{
+	PADAPTER padapter = rtw_netdev_priv(dev);
+
+	rtw_mp_trigger_lck(padapter);
+
+	return 0;
+}
 
 int rtw_mp_getver(struct net_device *dev,
 				  struct iw_request_info *info,
