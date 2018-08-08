@@ -890,10 +890,14 @@ static struct alc5640_pdata alc5640_config_data = {
 };
 #endif
 
-struct clk *ntx_extern_audio_root;
-
 static int mxc_alc5640_init(void)
 {
+	struct clk *pll4 = clk_get (NULL, "pll4");
+
+	clk_enable (pll4);	// enable pll4 before get pll4 rate.
+	alc5640_data.sysclk = clk_get_rate (pll4);
+	clk_disable (pll4);
+
 	mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_MCLK__AUDMUX_AUDIO_CLK_OUT );
 	mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_RXD__AUDMUX_AUD3_RXD );
 	mxc_iomux_v3_setup_pad( MX6SL_PAD_AUD_TXC__AUDMUX_AUD3_TXC );

@@ -154,9 +154,9 @@ static int imx_aif1_hw_params(struct snd_pcm_substream *substream,
 	/* set the SSI system clock as input (unused) */
 	snd_soc_dai_set_sysclk(cpu_dai, IMX_SSP_SYS_CLK, 0, SND_SOC_CLOCK_IN);
 
-	div_pm = (112896000/64)/sample_rate;	// 903168000/8
-	div_pm = (div_pm&1)?((div_pm>>1)+1):div_pm>>1;
-	printk ("[%s-%d] sampling rate %d, DIV_PM %d\n", __func__, __LINE__, sample_rate, div_pm);
+	// f_BIT_CLK  = f_SSI's sys clock  / [(DIV2 + 1) x (7 x PSR + 1) x (PM + 1) x2]
+	// ssi's sys clock = pll4 / 8
+	div_pm = ((priv->sysclk>>10)+(sample_rate>>1))/sample_rate;	// PM = rounded (ssi_sys_clk/128)
 
 	snd_soc_dai_set_clkdiv(cpu_dai, IMX_SSI_TX_DIV_PM, (div_pm-1));	
 	snd_soc_dai_set_clkdiv(cpu_dai, IMX_SSI_TX_DIV_2, 0);
