@@ -576,7 +576,7 @@ static const struct esdhc_platform_data mx6_ntx_q22_sd_wifi_data __initconst = {
 	.cd_type = ESDHC_CD_WIFI_PWR,
 };
 
-static const struct esdhc_platform_data mx6_ntx_esd_data __initconst = {
+static struct esdhc_platform_data mx6_ntx_esd_data = {
 	.cd_gpio		= MX6SL_EXT_SD_CD,
 	.wp_gpio		= -1,
 	.keep_power_at_suspend	= 1,
@@ -5031,6 +5031,7 @@ static void __init mx6_ntx_init(void)
 		pt_esdhc_ntx_isd_data = &mx6_ntx_isd_data;
 	}
 
+
 	switch(gptHWCFG->m_val.bPCB) {
 	case 31: //E60Q0X .
 	case 32: //E60Q1X .
@@ -5044,68 +5045,126 @@ static void __init mx6_ntx_init(void)
 		break;
 
 	default:
-		// \C5\FD\B7s\AA\BA\B3]\ADp\BA\FB\AB\F9\A6b\B3o\ADӰ϶\F4\A1A\A5H\BAɥi\AF\E0\B9F\A8줣\ADק\EFCODE\B4N\AF\E0\A5Ψ\EC\B7s\BE\F7\BAؤW\A1C
-		// SD1 = GPIO/EMMC
-		// SD2 = ESD
-		// SD3 = SDIO WIFI
-		// SD4 = EMMC/GPIO
-		if(1==giBootPort) {
-			// ESD is boot device .
-			printk("add usdhc %d as mmcblk0\n",giBootPort+1);
+		{
+			int iIsBootFromSD=0;
+			int iIsISDEnabledCD=1; // Internal SD enabled card detection . 
+			int iESD_port=-1;
+			int iWifi_port=-1;
+
 			if(46==gptHWCFG->m_val.bPCB||
 				48==gptHWCFG->m_val.bPCB|| 
 				51==gptHWCFG->m_val.bPCB|| 
 				50==gptHWCFG->m_val.bPCB||
 				58==gptHWCFG->m_val.bPCB||
-				( gptHWCFG->m_val.bPCB>=59 && 0==gptHWCFG->m_val.bIFlash )
-				)
+				( gptHWCFG->m_val.bPCB>=59 && 0==gptHWCFG->m_val.bIFlash ) )
 			{
-				// Q9X/QAX/QFX/QHX/E60QJX | (new PCB(id>=59)&& internal flash is uSD)
-				imx6q_add_sdhci_usdhc_imx(giBootPort, &mx6_ntx_esd_nocd_data);
+				// 
+				iIsBootFromSD = 1;
+				iIsISDEnabledCD = 0;
+				if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,1)) {
+					// WiFi@SD2 .
+					iESD_port = 2; // ESD@SD3.
+					iWifi_port = 1; // WiFi@SD2
+				}
+				else {
+					if(1==giBootPort) {
+						// models with only one SD boot port @ SD2
+						iESD_port = 3; // ESD@SD4 (eMMC).
+					}
+					else {
+						iESD_port = 1; // ESD@SD2 (uSD).
+					}
+					iWifi_port = 2; // WiFi@SD3
+				}
 			}
-			else {
-				imx6q_add_sdhci_usdhc_imx(giBootPort, &mx6_ntx_esd_data);
+			else
+			if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+				// eMMC@SD2 .
+				// SD1 : ESD
+				// SD2 : EMMC
+				// SD3 : WIFI
+				mx6_ntx_esd_data.cd_gpio = IMX_GPIO_NR(5, 9);
+				if(1!=giBootPort) {
+					// boot port not SD2 .
+					iIsBootFromSD = 1;
+					iESD_port = 1; // ESD@SD2,eMMC .
+				}
+				else {
+					iESD_port = 0; // ESD@SD1,uSD .
+				}
+
+				iWifi_port = 2; // WIFI@SD3 .
 			}
+			else
 			if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,0)) {
-				printk("add usdhc 1 as mmcblk1\n");
-				imx6q_add_sdhci_usdhc_imx(0, pt_esdhc_ntx_isd_data); // mmcblk1
+				// eMMC@SD1 .
+				// SD1 : EMMC
+				// SD2 : ESD
+				// SD3 : WIFI
+				if(0!=giBootPort) {
+					// boot port @ ESD(SD2) not ISD(SD1) .
+					iIsBootFromSD = 1;
+					iESD_port = 0; // ESD@EMMC(SD1) .
+				}
+				else {
+					iESD_port = 1; // ESD@ESD(SD2) .
+				}
+				iWifi_port = 2; // WIFI@SD3 .
 			}
 			else {
-				printk("add usdhc 4 as mmcblk1\n");
-				imx6q_add_sdhci_usdhc_imx(3, pt_esdhc_ntx_isd_data); // mmcblk1
-			}
-			
-			printk("add usdhc 3 as sdio for wifi\n");
-			imx6q_add_sdhci_usdhc_imx(2, &mx6_ntx_q22_sd_wifi_data); 
-		}
-		else if(2==giBootPort) {
-			//boot from ESD@SD3
-			printk("add usdhc %d as mmcblk0\n",giBootPort+1);
-			imx6q_add_sdhci_usdhc_imx(giBootPort, &mx6_ntx_esd_nocd_data);
+				// eMMC@SD4 .
+				// SD4 : EMMC
+				// SD2 : ESD/WIFI
+				// SD3 : WIFI/ESD
+				if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,1)) {
+					// WiFi@SD2 .
+					iWifi_port = 1;
+				}
+				else {
+					// WiFi@SD3
+					iWifi_port = 2;
+				}
 
-			if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,0)) {
-				printk("add usdhc 1 as mmcblk1\n");
-				imx6q_add_sdhci_usdhc_imx(0, pt_esdhc_ntx_isd_data); // mmcblk1
+				if(3!=giBootPort) {
+					// boot port @ ESD(SD3/SD2) not eMMC(SD4) .
+					iIsBootFromSD = 1;
+					iESD_port = 3; // ESD@EMMC(SD4) .
+				}
+				else {
+					// boot port @ eMMC(SD4) .
+					if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,1)) {
+						// WiFi@SD2 .
+						iESD_port = 2;
+					}
+					else {
+						iESD_port = 1;
+					}
+				}
+			}
+
+			if(iIsBootFromSD) {
+				if(iIsISDEnabledCD) {
+					printk("add SD(C/D)@usdhc%d=mmcblk0\n",giBootPort+1);
+					imx6q_add_sdhci_usdhc_imx(giBootPort, &mx6_ntx_esd_data);
+				}
+				else {
+					printk("add SD@usdhc%d=mmcblk0\n",giBootPort+1);
+					imx6q_add_sdhci_usdhc_imx(giBootPort, &mx6_ntx_esd_nocd_data);
+				}
 			}
 			else {
-				printk("add usdhc 4 as mmcblk1\n");
-				imx6q_add_sdhci_usdhc_imx(3, pt_esdhc_ntx_isd_data); // mmcblk1
+				printk("add eMMC@usdhc%d=mmcblk0\n",giBootPort+1);
+				imx6q_add_sdhci_usdhc_imx(giBootPort, pt_esdhc_ntx_isd_data);
 			}
 
-			printk("add usdhc 2 as sdio for wifi\n");
-			imx6q_add_sdhci_usdhc_imx(1, &mx6_ntx_q22_sd_wifi_data);
-		}
-		else {
-			// SD4/SD1 is boot port .
-			imx6q_add_sdhci_usdhc_imx(giBootPort, pt_esdhc_ntx_isd_data);
+			if(-1!=iESD_port) {
+				printk("add usdhc%d=mmcblk1\n",iESD_port+1);
+				imx6q_add_sdhci_usdhc_imx(iESD_port, &mx6_ntx_esd_data); // mmcblk1
+			}
 
-			if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,1)) {
-				// WiFi@SD2
-				imx6q_add_sdhci_usdhc_imx(2, &mx6_ntx_esd_data); // mmcblk1
-				imx6q_add_sdhci_usdhc_imx(1, &mx6_ntx_q22_sd_wifi_data);
-			} else {
-				imx6q_add_sdhci_usdhc_imx(1, &mx6_ntx_esd_data); // mmcblk1
-				imx6q_add_sdhci_usdhc_imx(2, &mx6_ntx_q22_sd_wifi_data);
+			if(-1!=iWifi_port) {
+				printk("add usdhc%d=WIFI\n",iWifi_port+1);
+				imx6q_add_sdhci_usdhc_imx(iWifi_port, &mx6_ntx_q22_sd_wifi_data);
 			}
 		}
 		break;
