@@ -3037,6 +3037,7 @@ void ntx_gpio_suspend (void)
 			fp9928_ONOFF(0);
 		}
 #endif //]CONFIG_FB_MXC_EINK_PANEL
+		ntx_ite8951_power (0);
 		//mxc_epdc_fb_ep1v8_output(0);
 		//gpio_direction_output (GPIO_EP_3V3_ON, 0);
 		//gpio_direction_output (MX6SL_EP_PWRALL, 0);
@@ -3542,6 +3543,7 @@ void ntx_gpio_resume (void)
 		//mxc_epdc_fb_ep1v8_output(1);
 		//gpio_direction_output (GPIO_EP_3V3_ON, 1);
 		//mdelay (5);
+		ntx_ite8951_power (1);
 #ifdef CONFIG_FB_MXC_EINK_PANEL//[
 		if(7==gptHWCFG->m_val.bDisplayCtrl) {
 			tps65185_ONOFF(1);
