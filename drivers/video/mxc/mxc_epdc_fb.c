@@ -82,11 +82,12 @@
 	#define NO_AUTO_REAGL_MODE		1
 	//#define NO_CUS_REAGL_MODE		1
 	
-	#if defined(TPS65185_VDROP_PROC_IN_KERNEL)//[
-		#define VDROP_PROC_IN_KERNEL		1
-	#endif //] defined(TPS65185_VDROP_PROC_IN_KERNEL)
 
 #endif//] CONFIG_ANDROID
+
+#if defined(TPS65185_VDROP_PROC_IN_KERNEL)//[
+	#define VDROP_PROC_IN_KERNEL		1
+#endif //] defined(TPS65185_VDROP_PROC_IN_KERNEL)
 
 #include "eink_processing2.h"
 
