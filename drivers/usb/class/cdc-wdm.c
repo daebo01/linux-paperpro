@@ -941,7 +941,7 @@ static void wdm_disconnect(struct usb_interface *intf)
 	mutex_unlock(&wdm_mutex);
 }
 
-#ifdef CONFIG_PM
+//#ifdef CONFIG_PM
 static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct wdm_device *desc = wdm_find_device(intf);
@@ -1047,9 +1047,9 @@ static struct usb_driver wdm_driver = {
 	.probe =	wdm_probe,
 	.disconnect =	wdm_disconnect,
 #ifdef CONFIG_PM
-	.suspend =	wdm_suspend,
-	.resume =	wdm_resume,
-	.reset_resume =	wdm_resume,
+//	.suspend =	wdm_suspend,
+//	.resume =	wdm_resume,
+//	.reset_resume =	wdm_resume,
 #endif
 	.pre_reset =	wdm_pre_reset,
 	.post_reset =	wdm_post_reset,
