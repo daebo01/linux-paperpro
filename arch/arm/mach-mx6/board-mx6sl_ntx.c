@@ -4309,7 +4309,7 @@ static void ntx_gpio_init(void)
 				gMX6SL_ON_LED = IMX_GPIO_NR(5, 13);
 				gMX6SL_CHG_LED = IMX_GPIO_NR(5, 13);
 			}
-			else if(55==gptHWCFG->m_val.bPCB || 67==gptHWCFG->m_val.bPCB){
+			else if(55==gptHWCFG->m_val.bPCB || 67==gptHWCFG->m_val.bPCB || 43==gptHWCFG->m_val.bPCB){
 				// E70Q0X/E70Q1X .
 				mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT7__GPIO_5_10_OUPUT);// blue led .
 				gMX6SL_ACT_LED = IMX_GPIO_NR(5, 10);
@@ -4592,7 +4592,7 @@ static void ntx_gpio_init(void)
 
 	if(gMX6SL_CHG_LED!=gMX6SL_ON_LED) {
 		gpio_request (gMX6SL_CHG_LED, "MX6SL_CHG_LED");
-		gpio_direction_input (gMX6SL_CHG_LED);
+		//gpio_direction_input (gMX6SL_CHG_LED);
 	}
 
 	if(36==gptHWCFG->m_val.bPCB || 40==gptHWCFG->m_val.bPCB || 2==gptHWCFG->m_val.bHOME_LED_PWM ) {

@@ -1183,27 +1183,21 @@ static void acin_pg_chk( void )
 {
 #ifdef CONFIG_MACH_MXSL_NTX//[
 	extern void led_red(int isOn);
+	extern void led_green(int isOn_G);
 	extern int mxc_usb_plug_getstatus (void);
 
 
-	if(9!=gptHWCFG->m_val.bCustomer) {
-		if( (36==gptHWCFG->m_val.bPCB||
-			 40==gptHWCFG->m_val.bPCB||
-			 50==gptHWCFG->m_val.bPCB||
-			 58==gptHWCFG->m_val.bPCB||
-			((gptHWCFG->m_val.bPCB>=61)&&(gMX6SL_CHG_LED==gMX6SL_ON_LED)) ) && 
-			0x03!=gptHWCFG->m_val.bUIConfig) 
-		{
+	
 			// E60Q32/E60Q5X control charging led if not MP/RD mode . 
 			if(mxc_usb_plug_getstatus()) {
-				led_red(1);
-				led_green(1);
+				led_red(0);
+				led_green(0);
 			}
 			else {
 				led_red(0);
+				led_green(0);
 			}
-		}
-	}	
+
 #endif //]CONFIG_MACH_MXSL_NTX
 
 	cancel_delayed_work(&work_acin_pg);

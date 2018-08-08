@@ -3597,23 +3597,7 @@ void ntx_gpio_resume (void)
 
 	gpiofn_resume();
 
-	if(9!=gptHWCFG->m_val.bCustomer) {
-		if(36==gptHWCFG->m_val.bPCB || 40==gptHWCFG->m_val.bPCB ||
-			 49==gptHWCFG->m_val.bPCB || 50==gptHWCFG->m_val.bPCB || 
-			 58==gptHWCFG->m_val.bPCB || 
-			 ((gptHWCFG->m_val.bPCB>=61)&&(gMX6SL_CHG_LED==gMX6SL_ON_LED)) )
-		{
-    	// E60Q3X/E60Q5X/E60QDX/E60QFX/E60QJX
-			// PCB > E60QKX && G==R LED .
-			if(mxc_usb_plug_getstatus()) {
-				led_red(1);
-				led_green(1);
-			}
-			else {
-				led_red(0);
-			}
-		}
-	}
+
 
 	if(3==gptHWCFG->m_val.bRSensor) {	// record KL25 INT status
 		gWakeUpbyKL25 = kl25_int_status();

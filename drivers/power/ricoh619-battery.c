@@ -4542,21 +4542,7 @@ static void charger_irq_work(struct work_struct *work)
 
 	int charge_status_check = get_power_supply_status(info); //1: charged ; 2:no charge  4:
 	giRICOH619_DCIN = ricoh619_charger_detect();
-							if( charge_status_check == 4  && giRICOH619_DCIN ){
-								printk(KERN_INFO "charging_status01:%d\n",charge_status_check);
-						        led_red(0);
-						        led_green(1);
-							}else if ( charge_status_check != 4 && giRICOH619_DCIN ){
-								printk(KERN_INFO "charging_status02:%d\n",charge_status_check);
-								led_red(1);
-								led_green(1);
-							}
-		else {
-			led_red(0);
-			led_green(0);
-			led_blue(0);
-		}
-
+	printk(KERN_INFO "Full-charging_status:%d-%d\n",charge_status_check,info->soca->chg_status);
 
 	_config_ricoh619_charger_params(info->dev,giRICOH619_DCIN);
 
