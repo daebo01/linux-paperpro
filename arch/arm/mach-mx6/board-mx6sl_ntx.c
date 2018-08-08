@@ -3938,8 +3938,7 @@ void ntx_ite8951_power(int iIsON)
 
 void ntx_lte_power(int iIsON)
 {
-	if(72==gptHWCFG->m_val.bPCB) {
-//	if(4==gptHWCFG->m_val.bMobile) {
+	if(4==gptHWCFG->m_val.bMobile) {
 		//SIM7100
 		gpio_direction_output (gMX6SL_LTE_PWR_EN, iIsON?1:0);
 	}
@@ -4364,8 +4363,7 @@ static void ntx_gpio_init(void)
 
  		gMX6SL_WIFI_3V3 = IMX_GPIO_NR(4, 29);
 		
-		if(72==gptHWCFG->m_val.bPCB) {
-//		if(4==gptHWCFG->m_val.bMobile) {
+		if(4==gptHWCFG->m_val.bMobile) {
 			//SIM7100
 			mxc_iomux_v3_setup_pad(MX6SL_PAD_FEC_RX_ER__GPIO_4_19);
 			gpio_request (gMX6SL_LTE_PWR_EN, "LTE_PWR_EN");
@@ -4377,7 +4375,7 @@ static void ntx_gpio_init(void)
 
 			mxc_iomux_v3_setup_pad(MX6SL_PAD_AUD_TXD__GPIO_1_5);
 			gpio_request (gMX6SL_LTE_RST, "LTE_RST");
-//			gpio_direction_output (gMX6SL_LTE_RST, 0);
+			gpio_direction_output (gMX6SL_LTE_RST, 0);
 			
 			mxc_iomux_v3_setup_pad(MX6SL_PAD_AUD_TXC__GPIO_1_3);
 			gpio_request (gMX6SL_LTE_DISABLE, "LTE_DISABLE");
