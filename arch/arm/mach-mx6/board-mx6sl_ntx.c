@@ -1685,10 +1685,12 @@ static struct i2c_board_info i2c_kl25_2_binfo = {
 	.irq = gpio_to_irq(MX6SL_P2_KL25_INT2),
 };
 
+static int mma8x5x_position;
 static struct i2c_board_info i2c_mma8652_binfo = {
-	.type = "mma8652",
+	.type = "mma8x5x",
 	.addr = 0x1D,
 	.irq = gpio_to_irq(MX6SL_KL25_INT2),
+	.platform_data = (void *)&mma8x5x_position,
 };
 
 static struct i2c_board_info i2c_wacom_binfo = {
