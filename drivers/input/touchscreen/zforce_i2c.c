@@ -43,6 +43,7 @@ static unsigned short gwZforce_FW_verA[4];
 static int custom_touchSizeLimit_set = 0;
 static unsigned long lastINT = 0;
 static unsigned short zforce_touch_flags;
+static int g_zforceRegWriting;
 
 static unsigned long ZFORCE_TS_WIDTH=DEFAULT_PANEL_W;
 static unsigned long ZFORCE_TS_HIGHT=DEFAULT_PANEL_H;
@@ -78,6 +79,8 @@ static const uint8_t cmd_LowSignalRequestY[] = {0xEE, 0x02, 0x0D, 1};
 static const uint8_t cmd_FixedSinalStrengthX[] = {0xEE, 0x03, 0x0F, 0, 0x09};
 static const uint8_t cmd_FixedSinalStrengthY[] = {0xEE, 0x03, 0x0F, 1, 0x09};
 static uint8_t cmd_LowerPDAmpResp[] = {0xEE, 0x05, 0x22, 0x01, 0x00, 0x75, 0x37};
+static const uint8_t cmd_RxSwitchDelay[] = {0xEE, 0x05, 0x022, 0x01, 0x00, 0x77, 0x23};
+static uint8_t cmd_ReadReg[] = {0xEE, 0x05, 0x022, 0x00, 0x00, 0x77, 0x00};
 
 static uint8_t cmd_Resolution[] = {0x02, (DEFAULT_PANEL_H&0xFF), (DEFAULT_PANEL_H>>8), (DEFAULT_PANEL_W&0xFF), (DEFAULT_PANEL_W>>8)};
 static const uint8_t cmd_TouchData[] = {0x04};
@@ -283,12 +286,19 @@ static int zForce_ir_touch_recv_data(struct i2c_client *client, uint8_t *buf)
 		case 3:
 			printk ("[%s-%d] command Configuration ...\n",__func__,__LINE__);
 			if(8==gptHWCFG->m_val.bTouchCtrl || 11==gptHWCFG->m_val.bTouchCtrl) {
-				i2c_master_send(client, cmd_TouchData_v2, sizeof(cmd_TouchData_v2));
+				if (50==gptHWCFG->m_val.bPCB) {		// modify reg 0x23 for E60QFx.
+					i2c_master_send(client, cmd_RxSwitchDelay, sizeof(cmd_RxSwitchDelay));
+					g_zforceRegWriting = 0x77;
+					g_zforce_initial_step = 0x22;
+				}
+				else {
+					i2c_master_send(client, cmd_TouchData_v2, sizeof(cmd_TouchData_v2));
+					g_zforce_initial_step = 4;
+				}
 			}else{
 				i2c_master_send(client, cmd_TouchData, sizeof(cmd_TouchData));
+				g_zforce_initial_step = 4;
 			}	
-//			printk ("[%s-%d] send cmd_StartTouchData\n",__func__,__LINE__);
-			g_zforce_initial_step = 4;
 			break;
 		case 4:
 //			printk ("[%s-%d] command Touch Data (count %d)...\n",__func__,__LINE__,buf[1]);
@@ -466,6 +476,7 @@ static int zForce_ir_touch_recv_data(struct i2c_client *client, uint8_t *buf)
 					printk ("[%s-%d] Lower amp of PD response. Set reg RX_FB 0x%02X. \n",__func__,__LINE__,zForce_ir_touch_data.PD_Resp);
 					i2c_master_send(client, cmd_LowerPDAmpResp, sizeof(cmd_LowerPDAmpResp));
 					zForce_ir_touch_data.lower_amp_flag = 0;
+					g_zforceRegWriting = 0x75;
 					g_zforce_initial_step = 0x22;
 				}
 				else {
@@ -485,11 +496,25 @@ static int zForce_ir_touch_recv_data(struct i2c_client *client, uint8_t *buf)
 			}
 			break;
 		case 0x22:		// set register RX_FB response
-			printk ("[%s-%d] Lower amp of PD response %x \n",__func__,__LINE__,buf[1]);
-			zForce_ir_touch_data.lower_amp_flag = 0;
-//			printk ("[%s-%d] send cmd_FixedSinalStrengthX\n",__func__,__LINE__);
-			i2c_master_send(client, cmd_FixedSinalStrengthX, sizeof(cmd_FixedSinalStrengthX));
-			g_zforce_initial_step = 1;
+			if (0x77 == g_zforceRegWriting) {
+				if (buf[1]) {
+					cmd_ReadReg[5]=0x77;
+					printk ("[%s-%d] Send read Reg 0x77 command\n",__func__,__LINE__);
+					i2c_master_send(client, cmd_ReadReg, sizeof(cmd_ReadReg));
+				}
+				else {
+					printk ("[%s-%d] Reg 0x77 read %02X\n",__func__,__LINE__, buf[2]);
+					i2c_master_send(client, cmd_TouchData_v2, sizeof(cmd_TouchData_v2));
+				}
+				g_zforce_initial_step = 4;
+			}
+			else {
+				printk ("[%s-%d] Lower amp of PD response %x \n",__func__,__LINE__,buf[1]);
+				zForce_ir_touch_data.lower_amp_flag = 0;
+//				printk ("[%s-%d] send cmd_FixedSinalStrengthX\n",__func__,__LINE__);
+				i2c_master_send(client, cmd_FixedSinalStrengthX, sizeof(cmd_FixedSinalStrengthX));
+				g_zforce_initial_step = 1;
+			}
 			break;
 		default:
 			printk (KERN_ERR "[%s-%d] undefined command %d (%d bytes)...\n",__func__,__LINE__, *buf, buf_recv[1]);
