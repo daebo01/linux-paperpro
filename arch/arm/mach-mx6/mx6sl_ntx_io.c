@@ -2848,8 +2848,15 @@ void ricoh_suspend_state_sync(void)
 					fl_current = iTemp;
 				}
 				else {
-					printk(KERN_WARNING"\n[WARNING]FL current not avalible(PCB=0x%x)\n\n",
+					if(61==gptHWCFG->m_val.bPCB) {
+						//QKX
+						if(last_FL_duty) 
+							fl_current = fl_current_QKX[last_FL_duty-1];
+					}
+					else {
+						printk(KERN_WARNING"\n[WARNING]FL current not avalible(PCB=0x%x)\n\n",
 							gptHWCFG->m_val.bPCB);
+					}
 				}
 				break;
 			}
@@ -2897,10 +2904,6 @@ void ricoh_suspend_state_sync(void)
 		case 51://QHX
 			if(last_FL_duty) 
 				fl_current = fl_current_QHX[last_FL_duty-1];
-			break;
-		case 61://QKX
-			if(last_FL_duty) 
-				fl_current = fl_current_QKX[last_FL_duty-1];
 			break;
 		}
 	}
