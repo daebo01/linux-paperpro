@@ -139,6 +139,10 @@ volatile unsigned gMX6SL_FL_W_H_EN = MX6SL_FL_R_EN; /* EPDC_SCE2 */
 volatile unsigned gMX6SL_FL_PWR_EN = MX6SL_FL_EN; 
 volatile unsigned gMX6SL_ITE_PWR_EN = IMX_GPIO_NR(5, 13);	/* SD1_D2 */
 volatile unsigned gMX6SL_USB_HUB_RST = IMX_GPIO_NR(5, 9);	/* SD1_D5 */
+volatile unsigned gMX6SL_LTE_PWR_EN = IMX_GPIO_NR(4, 19);	/* FEC_RX_ER */
+volatile unsigned gMX6SL_LTE_DISABLE = IMX_GPIO_NR(1, 3);	/* AUD_TXC */
+volatile unsigned gMX6SL_LTE_INT = IMX_GPIO_NR(1, 4);	/* AUD_TXD */
+volatile unsigned gMX6SL_LTE_RST = IMX_GPIO_NR(1, 5);	/* AUD_TXFS */
 
 volatile int giISD_3V3_ON_Ctrl = -1;
 
@@ -4378,6 +4382,33 @@ static void ntx_gpio_init(void)
 		}
 
  		gMX6SL_WIFI_3V3 = IMX_GPIO_NR(4, 29);
+		
+		if(72==gptHWCFG->m_val.bPCB) {
+//		if(4==gptHWCFG->m_val.bMobile) {
+			//SIM7100
+			mxc_iomux_v3_setup_pad(MX6SL_PAD_FEC_RX_ER__GPIO_4_19);
+			gpio_request (gMX6SL_LTE_PWR_EN, "LTE_PWR_EN");
+			gpio_direction_output (gMX6SL_LTE_PWR_EN, 1);
+
+			mxc_iomux_v3_setup_pad(MX6SL_PAD_AUD_TXFS__GPIO_1_4);
+			gpio_request (gMX6SL_LTE_INT, "LTE_INT");
+			gpio_direction_input (gMX6SL_LTE_INT);
+
+			mxc_iomux_v3_setup_pad(MX6SL_PAD_AUD_TXD__GPIO_1_5);
+			gpio_request (gMX6SL_LTE_RST, "LTE_RST");
+//			gpio_direction_output (gMX6SL_LTE_RST, 0);
+			
+			mxc_iomux_v3_setup_pad(MX6SL_PAD_AUD_TXC__GPIO_1_3);
+			gpio_request (gMX6SL_LTE_DISABLE, "LTE_DISABLE");
+			gpio_direction_output (gMX6SL_LTE_DISABLE, 1);
+		}
+
+		if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+			// eMMC@SD2 , IOs@SPI
+	 		gMX6SL_WIFI_3V3 = IMX_GPIO_NR(1, 1);
+		}
+		else
+	 		gMX6SL_WIFI_3V3 = IMX_GPIO_NR(4, 29);
 
 		// Wifi Reset pin assignment 
 		if(64==gptHWCFG->m_val.bPCB) {

@@ -490,6 +490,10 @@ static void option_instat_callback(struct urb *urb);
 /* MediaTek products */
 #define MEDIATEK_VENDOR_ID			0x0e8d
 
+/* SIMCOM product */
+#define SIMCOM_SIM7100_VID 0x1E0E
+#define SIMCOM_SIM7100_PID 0x9001
+
 /* some devices interfaces need special handling due to a number of reasons */
 enum option_blacklist_reason {
 		OPTION_BLACKLIST_NONE = 0,
@@ -1214,6 +1218,7 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a1, 0xff, 0x02, 0x01) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a2, 0xff, 0x00, 0x00) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a2, 0xff, 0x02, 0x01) },        /* MediaTek MT6276M modem & app port */
+	{ USB_DEVICE(SIMCOM_SIM7100_VID, SIMCOM_SIM7100_PID)}, /*SIM7100 */
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -1382,6 +1387,12 @@ static int option_probe(struct usb_serial *serial,
 	if (serial->dev->descriptor.idVendor == SAMSUNG_VENDOR_ID &&
 		serial->dev->descriptor.idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
 		serial->interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA)
+		return -ENODEV;
+	
+	/* sim7100 */ 
+	if (serial->dev->descriptor.idVendor == SIMCOM_SIM7100_VID &&
+		serial->dev->descriptor.idProduct == SIMCOM_SIM7100_PID &&
+		serial->interface->cur_altsetting->desc.bInterfaceNumber == 5 )
 		return -ENODEV;
 
 	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
