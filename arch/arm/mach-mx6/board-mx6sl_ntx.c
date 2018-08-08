@@ -4113,7 +4113,33 @@ static void ntx_gpio_init(void)
 		giISD_3V3_ON_Ctrl=-1;
 	}	
 	else {
+		if(0!=gptHWCFG->m_val.bLAN) {
+			// LAN port enabled .
+			mxc_iomux_v3_setup_multiple_pads(mx6sl_brd_ntx_sd4_lan_pads,
+				ARRAY_SIZE(mx6sl_brd_ntx_sd4_lan_pads));
+		}
+
+		if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+			// eMMC@SD2 .
+			mxc_iomux_v3_setup_multiple_pads(mx6sl_ntx_sd2_8bits_pads,
+					ARRAY_SIZE(mx6sl_ntx_sd2_8bits_pads));
+		
+			//if(gptHWCFG->m_val.bLAN)
+			{
+
+				// FEC_RX_ER not use .
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_FEC_RX_ER__GPIO_4_19_PUINT);//ESD_WP 
+				
+				// gpios in spi1&spi2 .
+				mxc_iomux_v3_setup_multiple_pads(mx6sl_ntx_spi1_gpio_pads,
+					ARRAY_SIZE(mx6sl_ntx_spi1_gpio_pads));
+				mxc_iomux_v3_setup_multiple_pads(mx6sl_ntx_spi2_gpio_pads,
+					ARRAY_SIZE(mx6sl_ntx_spi2_gpio_pads));
+			}
+		}
+		else 
 		if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,0)) {
+			// eMMC@SD1 .
 			mxc_iomux_v3_setup_multiple_pads(mx6sl_brd_ntx_sd1_pads,
 					ARRAY_SIZE(mx6sl_brd_ntx_sd1_pads));
 			mxc_iomux_v3_setup_multiple_pads(mx6sl_brd_ntx_sd4_gpio_pads,
@@ -4141,6 +4167,29 @@ static void ntx_gpio_init(void)
 			//udelay(1);
 		}
 		
+		if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+			// eMMC@SD2 
+			 
+			//if(gptHWCFG->m_val.bLAN) 
+			{
+				// IOs@SPI1&SPI2
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_ECSPI2_SS0__GPIO_4_15_PUINT);
+				gMX6SL_NTX_ACIN_PG = IMX_GPIO_NR(4, 15);
+
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_ECSPI1_MISO__GPIO_4_10_PUINT);
+				gMX6SL_NTX_CHG = IMX_GPIO_NR(4, 10);
+
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_ECSPI1_MOSI__GPIO_4_9_PUINT);
+				gMX6SL_MSP_INT = IMX_GPIO_NR(4, 9);
+
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_ECSPI1_SCLK__GPIO_4_8_PUINT);
+				gMX6SL_PWR_SW = IMX_GPIO_NR(4, 8);	
+				
+
+			}
+
+		}
+		else
 		if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,0)) {
 			// eMMC@SD1 , IOs@SD4
 			mxc_iomux_v3_setup_pad(MX6SL_PAD_FEC_TX_CLK__GPIO_4_21_PUINT);
@@ -4223,6 +4272,17 @@ static void ntx_gpio_init(void)
 		//
 		// LED assign ...
 		//
+		if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+			// EMMC@SD2 .
+			//if(gptHWCFG->m_val.bLAN) 
+			{
+				// IOs@SPI1&SPI2
+				gMX6SL_CHG_LED = IMX_GPIO_NR(4, 12);
+				gMX6SL_ACT_LED = IMX_GPIO_NR(4, 12);
+				gMX6SL_ON_LED = IMX_GPIO_NR(4, 12);
+			}
+		}
+		else 
 		if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,0)) {
 			//EMMC@SD1 .
 			gMX6SL_CHG_LED = IMX_GPIO_NR(4, 16);
@@ -4293,13 +4353,30 @@ static void ntx_gpio_init(void)
 
 		if(14==gptHWCFG->m_val.bDisplayCtrl) {
 			// TTE8951_USB .
-			mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT2__GPIO_5_13);
-			gpio_request (gMX6SL_ITE_PWR_EN, "ITE_PWR_EN");
-			gpio_direction_output (gMX6SL_ITE_PWR_EN, 0);
+			if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+				// EMMC@SD2 .
+				//if(gptHWCFG->m_val.bLAN) 
+				{
+					mxc_iomux_v3_setup_pad(MX6SL_PAD_ECSPI1_SS0__GPIO_4_11);
+					gMX6SL_ITE_PWR_EN = IMX_GPIO_NR(4, 11);
+					gpio_request (gMX6SL_ITE_PWR_EN, "ITE_PWR_EN");
+					gpio_direction_output (gMX6SL_ITE_PWR_EN, 0);
 
-			mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT5__GPIO_5_9);
-			gpio_request (gMX6SL_USB_HUB_RST, "USB_HUB_RST");
-			gpio_direction_output (gMX6SL_USB_HUB_RST, 0);
+					mxc_iomux_v3_setup_pad(MX6SL_PAD_ECSPI2_MOSI__GPIO_4_13);
+					gMX6SL_USB_HUB_RST = IMX_GPIO_NR(4, 13);
+					gpio_request (gMX6SL_USB_HUB_RST, "USB_HUB_RST");
+					gpio_direction_output (gMX6SL_USB_HUB_RST, 0);
+				}
+			}
+			else {
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT2__GPIO_5_13);
+				gpio_request (gMX6SL_ITE_PWR_EN, "ITE_PWR_EN");
+				gpio_direction_output (gMX6SL_ITE_PWR_EN, 0);
+
+				mxc_iomux_v3_setup_pad(MX6SL_PAD_SD1_DAT5__GPIO_5_9);
+				gpio_request (gMX6SL_USB_HUB_RST, "USB_HUB_RST");
+				gpio_direction_output (gMX6SL_USB_HUB_RST, 0);
+			}
 		}
 
  		gMX6SL_WIFI_3V3 = IMX_GPIO_NR(4, 29);

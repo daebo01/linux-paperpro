@@ -2686,7 +2686,7 @@ ff18f000
 	MX6SL_PAD_SD1_DAT7__GPIO_5_10,
 	MX6SL_PAD_SD2_DAT4__GPIO_5_2,
 	MX6SL_PAD_SD2_DAT5__GPIO_4_31,
-//		MX6SL_PAD_SD2_DAT6__GPIO_4_29,
+	MX6SL_PAD_SD2_DAT6__GPIO_4_29,
 	MX6SL_PAD_SD2_DAT7__GPIO_5_0,
 	MX6SL_PAD_SD2_RST__GPIO_4_27,
 //	MX6SL_PAD_UART1_RXD__GPIO_3_16,
@@ -3098,13 +3098,25 @@ void ntx_gpio_suspend (void)
 				}
 
 				// BAT_LOW_INT,PMU_INT,PWR_SW
+				if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+					// eMMC@SD2 .
+					if(((*p)==(MX6SL_PAD_ECSPI1_MOSI__GPIO_4_9)) ||
+							((*p)==(MX6SL_PAD_ECSPI1_MISO__GPIO_4_10)) ||
+							((*p)==(MX6SL_PAD_ECSPI1_SCLK__GPIO_4_8)))
+					{
+				    *p &= ~MUX_PAD_CTRL_MASK;
+						*p |= ((u64)0x17000 << MUX_PAD_CTRL_SHIFT);// PKE/PUE/HYS 
+						continue ;
+					}
+				}
+				else
 				if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,0)) {
 					if(((*p)==(MX6SL_PAD_FEC_RX_ER__GPIO_4_19)) ||
 							((*p)==(MX6SL_PAD_FEC_MDIO__GPIO_4_20)) ||
 							((*p)==(MX6SL_PAD_FEC_CRS_DV__GPIO_4_25)))
 					{
-					    *p &= ~MUX_PAD_CTRL_MASK;
-						*p |= ((u64)0x17000 << MUX_PAD_CTRL_SHIFT);
+				    *p &= ~MUX_PAD_CTRL_MASK;
+						*p |= ((u64)0x17000 << MUX_PAD_CTRL_SHIFT);// PKE/PUE/HYS 
 						continue ;
 					}
 				}
@@ -3119,8 +3131,44 @@ void ntx_gpio_suspend (void)
 
 			}
 
+			if(!NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+				if((*p)==(MX6SL_PAD_SD2_DAT6__GPIO_4_29)) {
+					continue;
+				}
+			}
 
-
+			if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,2)) {
+				// 
+				if((*p) == (MX6SL_PAD_SD2_DAT0__GPIO_5_1	)||
+					(*p) == (MX6SL_PAD_SD2_DAT1__GPIO_4_30)||
+					(*p) == (MX6SL_PAD_SD2_DAT2__GPIO_5_3	)||
+					(*p) == (MX6SL_PAD_SD2_DAT3__GPIO_4_28)||
+					(*p) == (MX6SL_PAD_SD2_DAT4__GPIO_5_2	)||
+					(*p) == (MX6SL_PAD_SD2_DAT5__GPIO_4_31	)||
+					(*p) == (MX6SL_PAD_SD2_DAT6__GPIO_4_29	)||
+					(*p) == (MX6SL_PAD_SD2_DAT7__GPIO_5_0	)||
+					(*p) == (MX6SL_PAD_SD2_CMD__GPIO_5_4 )||
+					(*p) == (MX6SL_PAD_SD2_CLK__GPIO_5_5	))
+				{
+					// EMMC2 PADS 
+#if 1
+					if( 2==gptHWCFG->m_val.bIFlash )
+#else 
+					if (37==gptHWCFG->m_val.bPCB /* E60QBX */|| 
+/* >=E60Q30A10 */((36==gptHWCFG->m_val.bPCB) && gptHWCFG->m_val.bPCB_REV>=0x10) ||
+            40==gptHWCFG->m_val.bPCB /* E60Q5X */ )
+#endif
+					{
+			        *p &= ~MUX_PAD_CTRL_MASK;
+	    		    /* Enable the Pull down and the keeper
+					 	* Set the drive strength to 0.
+					 	*/
+						*p |= ((u64)0x3000 << MUX_PAD_CTRL_SHIFT);
+					}
+					continue ;
+				}
+			}
+			else
 			if(NTXHWCFG_TST_FLAG(gptHWCFG->m_val.bPCB_Flags2,0)) {
 				if((*p) == (MX6SL_PAD_SD1_DAT0__GPIO_5_11	)||
 					(*p) == (MX6SL_PAD_SD1_DAT1__GPIO_5_8)||
@@ -3292,6 +3340,11 @@ void ntx_gpio_suspend (void)
 				{
 					// skip set pad of GP4_22 for Green LED .
 				}
+				else if( (*p) == MX6SL_PAD_ECSPI2_SCLK__GPIO_4_12 &&
+						(IMX_GPIO_NR(4,12)==gMX6SL_ON_LED) )
+				{
+					// skip set pad of GP4_12 for Green LED .
+				}
 				else {
 					*p &= ~MUX_PAD_CTRL_MASK;
 					*p |= ((u64)0x0001b0b1 << MUX_PAD_CTRL_SHIFT);
@@ -3414,8 +3467,12 @@ void ntx_gpio_suspend (void)
 				ntx_gpio_insuspend_dir[3] &= ~dwDisableBit; // GP4 .
 			}
 			else if (IMX_GPIO_NR(5,9)==gMX6SL_ON_LED) {
-				dwDisableBit = (unsigned long)(9<<22); // GP?_9 .
+				dwDisableBit = (unsigned long)(1<<9); // GP?_9 .
 				ntx_gpio_insuspend_dir[4] &= ~dwDisableBit; // GP5 .
+			}
+			else if (IMX_GPIO_NR(4,12)==gMX6SL_ON_LED) {
+				dwDisableBit = (unsigned long)(1<<12); // GP?_12 .
+				ntx_gpio_insuspend_dir[3] &= ~dwDisableBit; // GP4 .
 			}
 
 			if (2 == gptHWCFG->m_val.bAudioCodec) {	// ALC5640 codec

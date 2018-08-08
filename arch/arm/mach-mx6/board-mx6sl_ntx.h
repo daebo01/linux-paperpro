@@ -169,7 +169,28 @@ static iomux_v3_cfg_t mx6sl_brd_ntx_sd4_gpio_pads[] = {
 	MX6SL_PAD_FEC_TXD1__GPIO_4_16,		// CHG_LED
 	MX6SL_PAD_FEC_REF_CLK__GPIO_4_26,	// ON_LED
 };
+static iomux_v3_cfg_t mx6sl_brd_ntx_sd4_lan_pads[] = {
+	MX6SL_PAD_FEC_MDIO__FEC_MDIO,		// 
+	MX6SL_PAD_FEC_TX_CLK__FEC_TX_CLK,	// 
+	MX6SL_PAD_FEC_RX_ER__FEC_RX_ER,		// ESD_WP
+	MX6SL_PAD_FEC_CRS_DV__FEC_RX_DV,	// 
+	MX6SL_PAD_FEC_RXD1__FEC_RDATA_1,		// 
+	MX6SL_PAD_FEC_TXD0__FEC_TDATA_0,		// 
+	MX6SL_PAD_FEC_MDC__FEC_MDC,		// 
+	MX6SL_PAD_FEC_RXD0__FEC_RDATA_0,		// 
+	MX6SL_PAD_FEC_TX_EN__FEC_TX_EN,		// 
+	MX6SL_PAD_FEC_TXD1__FEC_TDATA_1,		// 
+	MX6SL_PAD_FEC_REF_CLK__FEC_REF_OUT,	// 
+};
 
+static iomux_v3_cfg_t mx6sl_brd_ntx_sd1_4bits_pads[] = {
+	MX6SL_PAD_SD1_CLK__USDHC1_CLK_50MHZ,
+	MX6SL_PAD_SD1_CMD__USDHC1_CMD_50MHZ,
+	MX6SL_PAD_SD1_DAT0__USDHC1_DAT0_50MHZ,
+	MX6SL_PAD_SD1_DAT1__USDHC1_DAT1_50MHZ,
+	MX6SL_PAD_SD1_DAT2__USDHC1_DAT2_50MHZ,
+	MX6SL_PAD_SD1_DAT3__USDHC1_DAT3_50MHZ,
+};
 
 static iomux_v3_cfg_t mx6sl_brd_ntx_sd1_pads[] = {
 	MX6SL_PAD_SD1_CLK__USDHC1_CLK_50MHZ,
@@ -195,6 +216,15 @@ static iomux_v3_cfg_t mx6sl_brd_ntx_sd1_gpio_pads[] = {
 	MX6SL_PAD_SD1_DAT5__GPIO_5_9, // V325_RST#
 	MX6SL_PAD_SD1_DAT6__GPIO_5_7, // ACTION_LED_RH#
 	MX6SL_PAD_SD1_DAT7__GPIO_5_10, // TP82/Charge_LED_RH#
+};
+
+static iomux_v3_cfg_t mx6sl_brd_ntx_sd1_4bits_gpio_pads[] = {
+	MX6SL_PAD_SD1_CLK__GPIO_5_15, // CHG# 
+	MX6SL_PAD_SD1_CMD__GPIO_5_14, // ACIN_PG#
+	MX6SL_PAD_SD1_DAT0__GPIO_5_11, // MSP_INT# 
+	MX6SL_PAD_SD1_DAT1__GPIO_5_8, // PWR_SW#
+	MX6SL_PAD_SD1_DAT2__GPIO_5_13, // TP85
+	MX6SL_PAD_SD1_DAT3__GPIO_5_6, // IR_DataReady
 };
 
 
@@ -306,6 +336,18 @@ static iomux_v3_cfg_t mx6sl_ntx_sd2_wifi_pads[] = {
 	MX6SL_PAD_SD2_DAT2__USDHC2_DAT2_50MHZ,
 	MX6SL_PAD_SD2_DAT3__USDHC2_DAT3_50MHZ,
 };
+static iomux_v3_cfg_t mx6sl_ntx_sd2_8bits_pads[] = {
+	MX6SL_PAD_SD2_CLK__USDHC2_CLK_50MHZ,
+	MX6SL_PAD_SD2_CMD__USDHC2_CMD_50MHZ,
+	MX6SL_PAD_SD2_DAT0__USDHC2_DAT0_50MHZ,
+	MX6SL_PAD_SD2_DAT1__USDHC2_DAT1_50MHZ,
+	MX6SL_PAD_SD2_DAT2__USDHC2_DAT2_50MHZ,
+	MX6SL_PAD_SD2_DAT3__USDHC2_DAT3_50MHZ,
+	MX6SL_PAD_SD2_DAT4__USDHC2_DAT4_50MHZ,
+	MX6SL_PAD_SD2_DAT5__USDHC2_DAT5_50MHZ,
+	MX6SL_PAD_SD2_DAT6__USDHC2_DAT6_50MHZ,
+	MX6SL_PAD_SD2_DAT7__USDHC2_DAT7_50MHZ,
+};
 
 static iomux_v3_cfg_t mx6sl_ntx_sd3_gpio_pads[] = {
 	MX6SL_PAD_SD3_CLK__GPIO_5_18,
@@ -334,6 +376,20 @@ static iomux_v3_cfg_t mx6sl_ntx_q22_wifictrl_pads[] = {
 static iomux_v3_cfg_t mx6sl_ntx_q12_wifictrl_pads[] = {
 	MX6SL_PAD_SD2_DAT6__GPIO_4_29, // WiFi_INT#
 	MX6SL_PAD_SD2_DAT5__GPIO_4_31, //NC
+};
+
+
+static iomux_v3_cfg_t mx6sl_ntx_spi1_gpio_pads[] = {
+	MX6SL_PAD_ECSPI1_MISO__GPIO_4_10,
+	MX6SL_PAD_ECSPI1_MOSI__GPIO_4_9,
+	MX6SL_PAD_ECSPI1_SCLK__GPIO_4_8,
+	MX6SL_PAD_ECSPI1_SS0__GPIO_4_11,
+};
+static iomux_v3_cfg_t mx6sl_ntx_spi2_gpio_pads[] = {
+	MX6SL_PAD_ECSPI2_MISO__GPIO_4_14,
+	MX6SL_PAD_ECSPI2_MOSI__GPIO_4_13,
+	MX6SL_PAD_ECSPI2_SCLK__GPIO_4_12,
+	MX6SL_PAD_ECSPI2_SS0__GPIO_4_15,
 };
 
 static iomux_v3_cfg_t mx6sl_ntx_uart2_pads[] = {
