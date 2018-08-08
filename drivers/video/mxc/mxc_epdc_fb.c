@@ -64,7 +64,7 @@
 
 
 
-#define GDEBUG 0
+//#define GDEBUG 1
 #define giDbgLvl 	1000
 #include <linux/gallen_dbg.h>
 
@@ -4431,8 +4431,8 @@ static int mxc_epdc_fb_send_single_update(struct mxcfb_update_data *upd_data,
 	upd_data->waveform_mode = upd_desc->upd_data.waveform_mode;
 
 	/* Get rotation-adjusted coordinates */
-	adjust_coordinates(fb_data->epdc_fb_var.xres,
-		fb_data->epdc_fb_var.yres, fb_data->epdc_fb_var.rotate,
+	adjust_coordinates(ALIGN(fb_data->epdc_fb_var.xres,8),
+		ALIGN(fb_data->epdc_fb_var.yres,8), fb_data->epdc_fb_var.rotate,
 		&upd_desc->upd_data.update_region, NULL);
 
 	/* Grab lock for queue manipulation and update submission */
@@ -5280,8 +5280,8 @@ static void epdc_aa_work_func(struct work_struct *work)
 	struct mxcfb_rect adj_update_region;
 
 	/* Get rotation-adjusted coordinates */
-	adjust_coordinates(fb_data->epdc_fb_var.xres,
-		fb_data->epdc_fb_var.yres, fb_data->epdc_fb_var.rotate,
+	adjust_coordinates(ALIGN(fb_data->epdc_fb_var.xres,8),
+		ALIGN(fb_data->epdc_fb_var.yres,8), fb_data->epdc_fb_var.rotate,
 		&upd_data_list->update_desc->upd_data.update_region,
 		&adj_update_region);
 
@@ -5873,7 +5873,7 @@ static void epdc_intr_work_func(struct work_struct *work)
 					rotate = FB_ROTATE_UR;
 					break;
 				}
-				adjust_coordinates(xres, yres, rotate,
+				adjust_coordinates(ALIGN(xres,8), ALIGN(yres,8), rotate,
 						&coll_region, cur_upd_rect);
 
 				dev_dbg(fb_data->dev, "Adj coll region: l = %d, "
