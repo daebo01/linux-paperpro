@@ -4511,7 +4511,7 @@ static int mxc_epdc_fb_send_single_update(struct mxcfb_update_data *upd_data,
 #else //][!VDROP_PROC_IN_KERNEL
 		dev_err(fb_data->dev, "send update failed : EPD PMIC get exceptions !!!\n");
 		GALLEN_DBGLOCAL_ESC();
-#endif
+#endif // ]VDROP_PROC_IN_KERNEL
 		ntx_epdc_pmic_exception_state_clear();
 	}
 

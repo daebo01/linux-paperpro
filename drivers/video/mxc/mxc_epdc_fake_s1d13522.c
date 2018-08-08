@@ -910,6 +910,7 @@ static int ntx_epdc_pmic_wait_exception_rect_reupdate(struct fb_info *info)
 		}
 		printk("waiting for pmic exception processing ...[end]\n");
 	}
+	return 0;
 }
 #else
 static int ntx_epdc_pmic_wait_exception_rect_reupdate(struct fb_info *info)
