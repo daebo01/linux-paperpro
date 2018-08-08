@@ -941,6 +941,7 @@ static void wdm_disconnect(struct usb_interface *intf)
 	mutex_unlock(&wdm_mutex);
 }
 
+#if 0
 //#ifdef CONFIG_PM
 static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 {
