@@ -1237,6 +1237,7 @@ static int calc_capacity_in_period(struct ricoh61x_battery_info *info,
 #if 0
 		*cc_cap = cc_sum*25/9/fa_cap;		/* unit is 0.01% */
 #else
+		// Rounded to the 0.01%
 		// cc_sum * 10000/3600(s)/fa_Cap
 		int	cc_cap_val = cc_sum*100000/3600/fa_cap; /* unit : 0.001%  */
 		*cc_cap = cc_cap_val/10;		/* unit is 0.01% */
@@ -1802,7 +1803,7 @@ static int calc_soc_by_voltageMethod(struct ricoh61x_battery_info *info)
 						break;
 					}
 				}
-			}
+			}		
 		}
 		else {
 			if(info->soca->Vbat_ave > 4100000) {
