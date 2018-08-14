@@ -7150,6 +7150,51 @@ int __devinit mxc_epdc_fb_probe(struct platform_device *pdev)
 
 	clk_enable(fb_data->epdc_clk_axi);
 	val = __raw_readl(EPDC_VERSION);
+#if 1
+       {
+#define REGS_QOS_BASE     0x02094000
+#define MX6SL_EPD_OFFSET_ADDR   0x1400 // 6SLL is 0x1800
+#define MX6SL_QOS_RD    0xe0
+#define MX6SL_QOS_WR    0xd0
+
+#define AIPS1_ARB_BASE_ADDR            0x02000000
+#define PERIPBASE_VIRT                 0xF2000000
+#define ATZ1_BASE_ADDR                 AIPS1_ARB_BASE_ADDR
+#define AIPS1_OFF_BASE_ADDR            (ATZ1_BASE_ADDR + 0x80000)
+#define CCM_BASE_ADDR                  (AIPS1_OFF_BASE_ADDR + 0x44000)
+#define MX6_IO_ADDRESS(x)              (void __force __iomem *)((x) + PERIPBASE_VIRT)
+#define MXC_CCM_BASE                   MX6_IO_ADDRESS(CCM_BASE_ADDR)
+#define MXC_CCM_CCGR4                  (MXC_CCM_BASE + 0x78)
+
+       void __iomem *qosc_base;
+       qosc_base = ioremap(REGS_QOS_BASE, SZ_16K);
+       if (qosc_base == NULL) {
+               ret = -ENOMEM;
+               goto out;
+       } else {
+              u32 reg;
+ 
+              reg = __raw_readl(MXC_CCM_CCGR4);
+              printk("%s:%d CCGR4 0x%x\n", __func__, __LINE__, reg);
+              __raw_writel(reg | 0x30, MXC_CCM_CCGR4);
+               __raw_writel(0, qosc_base); // Disable clkgate & soft_reset
+               __raw_writel(0, qosc_base + 0x40); // Enable all masters
+
+               printk("MX6SL_EPD 0x%x\n", __raw_readl(qosc_base + MX6SL_EPD_OFFSET_ADDR)); // Disable clkgate & soft_reset
+
+               __raw_writel(0, qosc_base + MX6SL_EPD_OFFSET_ADDR); // Disable clkgate & soft_reset
+
+               printk ("[%s-%d] QoS_WR %08X\n",__func__, __LINE__,__raw_readl(qosc_base + MX6SL_EPD_OFFSET_ADDR  + MX6SL_QOS_WR));
+               printk ("[%s-%d] QoS_RD %08X\n",__func__, __LINE__,__raw_readl(qosc_base + MX6SL_EPD_OFFSET_ADDR  + MX6SL_QOS_RD));
+               __raw_writel(0x0f020722, qosc_base + MX6SL_EPD_OFFSET_ADDR  + MX6SL_QOS_WR); // Write QOS, init = 7 with red flag
+               __raw_writel(0x0f020722, qosc_base + MX6SL_EPD_OFFSET_ADDR  + MX6SL_QOS_RD); // Read QOS,  init = 7 with red flag
+               printk("EPDC QoS 0x%x\n",__raw_readl(qosc_base + MX6SL_EPD_OFFSET_ADDR+0xf0));     //Check the QOS value
+               iounmap(qosc_base);
+              __raw_writel(reg, MXC_CCM_CCGR4);
+              printk("EPDC QoS Done\n");
+       }
+       }
+#endif
 	clk_disable(fb_data->epdc_clk_axi);
 	fb_data->rev = ((val & EPDC_VERSION_MAJOR_MASK) >>
 				EPDC_VERSION_MAJOR_OFFSET) * 10
