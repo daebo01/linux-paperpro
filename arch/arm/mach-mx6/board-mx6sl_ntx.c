@@ -5498,15 +5498,34 @@ static struct sys_timer mxc_timer = {
 
 static void __init mx6_ntx_reserve(void)
 {
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	phys_addr_t ram_console_phys;
+
+	// 원래는 ram_console_p param으로 설정해야되지만, uboot를 수정해야한다.
+	ram_console_phys = memblock_alloc_base(SZ_1M, SZ_4K, MEMBLOCK_ALLOC_ACCESSIBLE);
+	memblock_remove(ram_console_phys, SZ_1M);
+	memblock_free(ram_console_phys, SZ_1M);
+	ram_console_resource.start = ram_console_phys;
+	ram_console_resource.end   = ram_console_phys + SZ_1M - 1;
+
+	printk("RAM console: %dMB memory reserved (0x%08x)\n", 
+		SZ_1M >> 20,
+		ram_console_phys);
+#endif
+
 #if defined(CONFIG_MXC_GPU_VIV) || defined(CONFIG_MXC_GPU_VIV_MODULE)
-	phys_addr_t phys;
+	phys_addr_t gpu_phys;
 
 	if (imx6q_gpu_pdata.reserved_mem_size) {
-		phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
+		gpu_phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
 					   SZ_4K, MEMBLOCK_ALLOC_ACCESSIBLE);
-		memblock_remove(phys, imx6q_gpu_pdata.reserved_mem_size);
-		imx6q_gpu_pdata.reserved_mem_base = phys;
+		memblock_remove(gpu_phys, imx6q_gpu_pdata.reserved_mem_size);
+		imx6q_gpu_pdata.reserved_mem_base = gpu_phys;
 	}
+
+	printk("GPU: %dMB memory reserved (0x%08x)\n",
+			imx6q_gpu_pdata.reserved_mem_size >> 20,
+			gpu_phys);
 #endif
 }
 
